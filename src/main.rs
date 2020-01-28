@@ -1,6 +1,8 @@
 use std::vec;
 use std::collections::HashSet;
 
+use rand::{thread_rng, Rng};
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 enum CardRank {
     Two,
@@ -57,7 +59,7 @@ impl PartialOrd for Card {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
 enum CombRank {
     HighestCard(CardRank),
     Pair(CardRank),
@@ -69,6 +71,7 @@ enum CombRank {
     FourOfAKind(CardRank),
     StraightFlush(CardRank),
 }
+
 
 #[derive(Debug)]
 struct Comb {
@@ -278,7 +281,6 @@ impl Comb {
             None
         }
     }
-
 }
 
 #[test]
@@ -394,9 +396,36 @@ enum State {
     Init(usize),
 }
 
+#[derive(Debug)]
+struct Deck {
+    cards: Vec<Card>,
+}
+
+impl Deck {
+    pub fn new() -> Deck {
+        let mut cards = Vec::<Card>::new();
+        for rank in CardRanks.iter() {
+            for suit in CardSuits.iter() {
+                cards.push(Card {rank: *rank, suit: *suit});
+            }
+        }
+        thread_rng().shuffle(&mut cards);
+
+        Deck {cards}
+    }
+
+    fn get_card(&mut self) -> Option<Card> {
+        self.cards.pop()
+    }
+
+    fn size(&self) -> usize {
+        self.cards.len()
+    }
+}
 
 struct Game {
     players: Vec<Player>,
+    deck: Deck,
     state: State,
 }
 
