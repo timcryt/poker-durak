@@ -543,8 +543,7 @@ impl Game {
                                     Some(comb) => {
                                         self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
                                         if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                            self.players_next[self.players_prev[player]] = self.players_next[player];
-                                            self.players_prev[self.players_next[player]] = self.players_prev[player];
+                                            self.kick_player(pid);
                                         }
                                         self.state = State::Active(player, Board {cards, comb});
                                         self.next_player();
@@ -577,8 +576,7 @@ impl Game {
                                             if new_comb > board.comb {
                                                 self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
                                                 if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                                    self.players_next[self.players_prev[player]] = self.players_next[player];
-                                                    self.players_prev[self.players_next[player]] = self.players_prev[player];
+                                                    self.kick_player(pid);
                                                 }
                                                 let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
                                                 self.state = State::Active(player, new_board);
@@ -604,6 +602,33 @@ impl Game {
             }
         }
     }
+
+    pub fn kick_player(&mut self, pid: usize) {
+        let player = self.players_map[&pid];
+        self.players_next[self.players_prev[player]] = self.players_next[player];
+        self.players_prev[self.players_next[player]] = self.players_prev[player];
+        self.players_next[player] = player; 
+    }
+
+    pub fn get_stepping_player(&self) -> usize {
+        match &self.state {
+            State::Passive(player) => self.players[*player].id,
+            State::Active(player, _) => self.players[*player].id,
+        }
+    }
+
+    pub fn get_player_cards(&self, pid: usize) -> HashSet<Card> {
+        self.players[self.players_map[&pid]].cards.clone()
+    }
+
+    pub fn get_deck_size(&self) -> usize {
+        self.deck.size()
+    }
+
+    pub fn is_player_active(&self, pid: usize) -> bool {
+        self.players_next[self.players_map[&pid]] == self.players_map[&pid]
+    }
+
 
     fn next_player(&mut self) {
         self.state = match self.state.clone() {
