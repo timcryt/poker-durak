@@ -1,7 +1,7 @@
 use std::vec;
 use std::collections::HashSet;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
 enum CardRank {
     Two,
     Three,
@@ -17,6 +17,7 @@ enum CardRank {
     King,
     Ace,
 }
+
 
 const CardRanks: [CardRank; 13] = [
     CardRank::Two,
@@ -34,7 +35,7 @@ const CardRanks: [CardRank; 13] = [
     CardRank::Ace
 ];
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 enum CardSuit {
     Spades,
     Clubs,
@@ -44,7 +45,7 @@ enum CardSuit {
 
 const CardSuits: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 struct Card {
     rank: CardRank,
     suit: CardSuit,
@@ -69,6 +70,7 @@ enum CombRank {
     StraightFlush,
 }
 
+#[derive(Debug)]
 struct Comb {
     cards: HashSet<Card>,
     rank: CombRank,
@@ -107,32 +109,31 @@ impl Comb {
         }
     }
 
-
     fn is_straight_flush(cards: &HashSet<Card>) -> bool {
-        if cards.len() != 5 {
-            false
-        } else {
+        if cards.len() == 5 {
             for i in CardSuits.iter() {
+                let mut v = vec![false; CardRanks.len()];
                 for j in cards {
-                    let mut v = vec![false; CardRanks.len()];
                     if j.suit == *i {
                         v[j.rank as usize] = true; 
                     }
-                    let mut c = 0;
-                    for j in 0..CardRanks.len() {
-                        if v[j] {
-                            c += 1
-                        } else {
-                            c = 0
-                        }
-                        if c >= 5 {
+                }
+                let mut c = 0;
+                for j in 0..CardRanks.len() {
+
+                    if v[j] {
+                        c += 1;
+                        if c == 5 {
                             return true;
                         }
+                    } else {
+                        c = 0
                     }
+
                 }
-            }
-            false
+            }           
         }
+        false
     }
 
     fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> bool {
@@ -227,6 +228,101 @@ impl Comb {
 
 }
 
+#[test]
+fn comb_test_straight_flush() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ten, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Jack, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Queen, suit: CardSuit::Hearts},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::StraightFlush);
+}
+
+#[test]
+fn comb_test_four_of_a_kind() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FourOfAKind);   
+}
+
+#[test]
+fn comb_test_full_house() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        Card {rank: CardRank::King, suit: CardSuit::Diamonds}
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse);   
+}
+
+#[test]
+fn comb_test_flush() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Nine, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Jack, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Queen, suit: CardSuit::Hearts},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Flush);
+}
+
+#[test]
+fn comb_test_straight() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ten, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Jack, suit: CardSuit::Spades},
+        Card {rank: CardRank::Queen, suit: CardSuit::Diamonds},
+        Card {rank: CardRank::King, suit: CardSuit::Clubs},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Straight);
+}
+
+#[test]
+fn comb_test_set() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Set);
+}
+
+#[test]
+fn comb_test_two_pairs() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        Card {rank: CardRank::King, suit: CardSuit::Diamonds}
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::TwoPairs);
+}
+
+#[test]
+fn comb_test_pair() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Pair);
+}
+
+#[test]
+fn comb_test_highest_card() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::HighestCard);    
+}
+
+#[test]
+fn comb_test_nothing() {
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).is_none(), true);    
+}
 
 struct Player {
     id: usize,
