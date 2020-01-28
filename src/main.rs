@@ -205,7 +205,24 @@ impl Comb {
     }
 
     fn is_straight(cards: &HashSet<Card>) -> bool {
-        true
+        if cards.len() == 5 {
+            let mut v = vec![false; CardRanks.len()];
+            for i in cards {
+                v[i.rank as usize] = true;
+            }
+            let mut c = 0;
+            for i in v {
+                if i {
+                    c += 1;
+                    if c == 5 {
+                        return true;
+                    }
+                } else {
+                    c = 0;
+                }
+            }
+        }
+        false
     }
 
 }
