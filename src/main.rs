@@ -1,5 +1,5 @@
 use std::vec;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use rand::{thread_rng, Rng};
 
@@ -71,7 +71,6 @@ enum CombRank {
     FourOfAKind(CardRank),
     StraightFlush(CardRank),
 }
-
 
 #[derive(Debug)]
 struct Comb {
@@ -379,21 +378,38 @@ fn comb_test_nothing() {
         ].into_iter().collect::<HashSet<_>>()).is_none(), true);    
 }
 
+#[derive(PartialEq, Eq, Debug)]
 struct Player {
     id: usize,
     cards: HashSet<Card>,
 }
 
+impl PartialOrd for Player {
+    fn partial_cmp(&self, other: &Player) -> Option<std::cmp::Ordering> {
+        let mut v1 = self.cards.iter().map(|card| card.rank).collect::<Vec<_>>();
+        v1.sort();
+        let mut v2 = other.cards.iter().map(|card| card.rank).collect::<Vec<_>>();
+        v2.sort();
+        Some(v1.cmp(&v2))
+    }
+}
 
+impl Ord for Player {
+    fn cmp(&self, other: &Player) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+#[derive(Debug)]
 struct Board {
     comb: Comb,
     cards: HashSet<Card>,
 }
 
+#[derive(Debug)]
 enum State {
     Active(usize, Board),
     Passive(usize),
-    Init(usize),
 }
 
 #[derive(Debug)]
@@ -414,21 +430,57 @@ impl Deck {
         Deck {cards}
     }
 
-    fn get_card(&mut self) -> Option<Card> {
+    pub fn get_card(&mut self) -> Option<Card> {
         self.cards.pop()
     }
 
-    fn size(&self) -> usize {
+
+    pub fn size(&self) -> usize {
         self.cards.len()
     }
 }
 
+#[derive(Debug)]
 struct Game {
     players: Vec<Player>,
+    players_map: HashMap<usize, usize>,
     deck: Deck,
     state: State,
 }
 
-fn main() {
+impl Game {
+    pub fn new(players_ids: Vec<usize>) -> Option<Game> {
+        if players_ids.len() < 52 / 5 {
+            let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<Player>>();
+            thread_rng().shuffle(&mut players);
+            let players_map = players.iter().enumerate().map(|x| (x.0, x.1.id)).collect::<HashMap<usize, usize>>();
+            let mut deck = Deck::new();
+            for player in players.iter_mut() {
+                for i in 0..5 {
+                    player.cards.insert(deck.get_card().unwrap());
+                }
+            }
 
+            let state = State::Passive(Game::player_min(&players));
+            
+
+            Some(Game {players, players_map, deck, state})
+        } else {
+            None
+        }   
+    }
+
+    fn player_min(players: &Vec<Player>) -> usize {
+        let mut mini = 0;
+        for i in 1..players.len() {
+            if players[i] < players[mini] {
+                mini = i;
+            }
+        }
+        return mini;
+    }
+}
+
+fn main() {
+    
 }
