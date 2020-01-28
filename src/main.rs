@@ -457,6 +457,8 @@ enum Step {
 #[derive(Debug)]
 struct Game {
     players: Vec<Player>,
+    players_prev: Vec<usize>,
+    players_next: Vec<usize>,
     players_map: HashMap<usize, usize>,
     deck: Deck,
     state: State,
@@ -499,9 +501,11 @@ impl std::error::Error for StepError {
 impl Game {
     pub fn new(players_ids: Vec<usize>) -> Option<Game> {
         if players_ids.len() < 52 / 5 {
-            let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<Player>>();
+            let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
-            let players_map = players.iter().enumerate().map(|x| (x.0, x.1.id)).collect::<HashMap<usize, usize>>();
+            let players_map = players.iter().enumerate().map(|x| (x.0, x.1.id)).collect();
+            let players_next = (0..(players.len())).map(|x| (x + 1) % players.len()).collect();
+            let players_prev = (0..(players.len())).map(|x| (x + players.len() - 1) % players.len()).collect();
             let mut deck = Deck::new();
             for player in players.iter_mut() {
                 for i in 0..5 {
@@ -512,7 +516,7 @@ impl Game {
             let state = State::Passive(Game::player_min(&players));
             
 
-            Some(Game {players, players_map, deck, state})
+            Some(Game {players, players_prev, players_next, players_map, deck, state})
         } else {
             None
         }   
@@ -538,6 +542,10 @@ impl Game {
                                 match Comb::new(cards.clone()) {
                                     Some(comb) => {
                                         self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
+                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                            self.players_next[self.players_prev[player]] = self.players_next[player];
+                                            self.players_prev[self.players_next[player]] = self.players_prev[player];
+                                        }
                                         self.state = State::Active(player, Board {cards, comb});
                                         self.next_player();
                                         Ok(())
@@ -568,6 +576,10 @@ impl Game {
                                         Some(new_comb) => {
                                             if new_comb > board.comb {
                                                 self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
+                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                                    self.players_next[self.players_prev[player]] = self.players_next[player];
+                                                    self.players_prev[self.players_next[player]] = self.players_prev[player];
+                                                }
                                                 let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
                                                 self.state = State::Active(player, new_board);
                                                 Ok(())
@@ -595,8 +607,8 @@ impl Game {
 
     fn next_player(&mut self) {
         self.state = match self.state.clone() {
-            State::Passive(player) => State::Passive((player + 1) % self.players.len()),
-            State::Active(player, board) => State::Active((player + 1) % self.players.len(), board),
+            State::Passive(player) => State::Passive(self.players_next[player]),
+            State::Active(player, board) => State::Active(self.players_next[player], board),
         };
     }
 
@@ -612,5 +624,9 @@ impl Game {
 }
 
 fn main() {
+    let mut g = Game::new(vec![0, 1]).unwrap();
+    dbg!(&g);
+    dbg!(&g.make_step(1, Step::GetCard));
+    dbg!(&g);
 
 }
