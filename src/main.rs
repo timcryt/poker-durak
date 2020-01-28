@@ -57,17 +57,17 @@ impl PartialOrd for Card {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 enum CombRank {
-    HighestCard,
-    Pair,
-    TwoPairs,
-    Set,
-    Straight,
-    Flush,
-    FullHouse,
-    FourOfAKind,
-    StraightFlush,
+    HighestCard(CardRank),
+    Pair(CardRank),
+    TwoPairs((CardRank, CardRank)),
+    Set(CardRank),
+    Straight(CardRank),
+    Flush(CardRank),
+    FullHouse((CardRank, CardRank)),
+    FourOfAKind(CardRank),
+    StraightFlush(CardRank),
 }
 
 #[derive(Debug)]
@@ -86,31 +86,39 @@ impl Comb {
     }
 
     fn get_rank(cards: &HashSet<Card>) -> Option<CombRank> {
-        if Comb::is_straight_flush(cards) {
-            Some(CombRank::StraightFlush)
-        } else if Comb::is_four_of_a_kind(cards) {
-            Some(CombRank::FourOfAKind)
-        } else if Comb::is_full_house(cards) {
-            Some(CombRank::FullHouse)
-        } else if Comb::is_flush(cards) {
-            Some(CombRank::Flush)
-        } else if Comb::is_straight(cards) {
-            Some(CombRank::Straight)
-        } else if Comb::is_set(cards) {
-            Some(CombRank::Set)
-        } else if Comb::is_two_pairs(cards) {
-            Some(CombRank::TwoPairs)
-        } else if Comb::is_pair(cards) {
-            Some(CombRank::Pair)
-        } else if Comb::is_highest_card(cards) {
-            Some(CombRank::HighestCard)
-        } else {
-            None
-        }
+        match Comb::is_straight_flush(cards) {
+            Some(x) => Some(CombRank::StraightFlush(x)),
+            None => 
+        match Comb::is_four_of_a_kind(cards) {
+            Some(x) => Some(CombRank::FourOfAKind(x)),
+            None =>
+        match Comb::is_full_house(cards) {
+            Some(x) => Some(CombRank::FullHouse(x)),
+            None =>
+        match Comb::is_flush(cards) {
+            Some(x) => Some(CombRank::Flush(x)),
+            None =>
+        match Comb::is_straight(cards) {
+            Some(x) => Some(CombRank::Straight(x)),
+            None =>
+        match Comb::is_set(cards) {
+            Some(x) => Some(CombRank::Set(x)),
+            None =>
+        match Comb::is_two_pairs(cards) {
+            Some(x) => Some(CombRank::TwoPairs(x)),
+            None =>
+        match Comb::is_pair(cards) {
+            Some(x) => Some(CombRank::Pair(x)),
+            None =>
+        match Comb::is_highest_card(cards) {
+            Some(x) => Some(CombRank::HighestCard(x)),
+            None => None
+        }}}}}}}}}
     }
 
-    fn is_straight_flush(cards: &HashSet<Card>) -> bool {
+    fn is_straight_flush(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
+            let mut m: Option<CardRank> = None;
             for i in CardSuits.iter() {
                 let mut v = vec![false; CardRanks.len()];
                 for j in cards {
@@ -120,27 +128,38 @@ impl Comb {
                 }
                 let mut c = 0;
                 for j in 0..CardRanks.len() {
-
                     if v[j] {
                         c += 1;
                         if c == 5 {
-                            return true;
+                            m = match m {
+                                None =>
+                                    Some(CardRanks[j]),
+                                Some(x) =>
+                                    if x < CardRanks[j] {
+                                        Some(CardRanks[j])
+                                    } else {
+                                        Some(x)
+                                    }
+                            }
                         }
                     } else {
                         c = 0
                     }
 
                 }
-            }           
+            }       
+            m    
+        } else {
+            None
         }
-        false
     }
 
-    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> bool {
+    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<(CardRank, CardRank)> {
         if cards.len() == x + y {
+            let mut m: Option<(CardRank, CardRank)> = None;
             for i in CardRanks.iter() {
                 for j in CardRanks.iter() {
-                    if i != j && !(y == 0 && *j != CardRanks[0]) {
+                    if i < j && !(y == 0 && *i != CardRanks[0]) {
                         let (mut ci, mut cj) = (0, 0);
                         for k in cards {
                             if k.rank == *i {
@@ -148,82 +167,116 @@ impl Comb {
                             } else if k.rank == *j {
                                 cj += 1
                             } 
-                            if ci >= x && cj >= y {
-                                return true
+                            if (ci >= x && cj >= y) || (ci >= y && cj >= x) {
+                                let t = (*j, *i);
+                                m = match m {
+                                    None =>
+                                        Some(t),
+                                    Some(x) =>
+                                        if x < t {
+                                            Some(t)
+                                        } else {
+                                            Some(x)
+                                        }
+                                }
                             }
                         }
                     }
                 }
             }
+            m
+        } else {
+            None
         }
-        false
     }
 
-    fn is_x_of_a_kind(cards: &HashSet<Card>, x: usize) -> bool {
-        Comb::is_xy_of_a_kind(cards, x, 0)
+    fn is_x_of_a_kind(cards: &HashSet<Card>, x: usize) -> Option<CardRank> {
+        match Comb::is_xy_of_a_kind(cards, x, 0) {
+            None => None,
+            Some((a, b)) => Some(a),
+        }
     }
 
-    fn is_four_of_a_kind(cards: &HashSet<Card>) -> bool {
+    fn is_four_of_a_kind(cards: &HashSet<Card>) -> Option<CardRank> {
         Comb::is_x_of_a_kind(cards, 4)
     }
 
 
-    fn is_full_house(cards: &HashSet<Card>) -> bool {
+    fn is_full_house(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
         Comb::is_xy_of_a_kind(cards, 3, 2)
     }
 
-    fn is_set(cards: &HashSet<Card>) -> bool {
+    fn is_set(cards: &HashSet<Card>) -> Option<CardRank> {
         Comb::is_x_of_a_kind(cards, 3)
     }
 
-    fn is_two_pairs(cards: &HashSet<Card>) -> bool {
+    fn is_two_pairs(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
         Comb::is_xy_of_a_kind(cards, 2, 2)
     }
 
-    fn is_pair(cards: &HashSet<Card>) -> bool {
+    fn is_pair(cards: &HashSet<Card>) -> Option<CardRank> {
         Comb::is_x_of_a_kind(cards, 2)
     }
 
-    fn is_highest_card(cards: &HashSet<Card>) -> bool {
+    fn is_highest_card(cards: &HashSet<Card>) -> Option<CardRank> {
         Comb::is_x_of_a_kind(cards, 1)
     }
 
-    fn is_flush(cards: &HashSet<Card>) -> bool {
+    fn is_flush(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
+            let mut m: Option<CardRank> = None;
             for i in CardSuits.iter() {
                 let mut c = 0;
                 for j in cards {
                     if j.suit == *i {
                         c += 1;
-                        if c >= 5 {
-                            return true;
-                        }
                     }
                 } 
+                if c >= 5 {
+                    for j in cards {
+                        if j.suit == *i {
+                            m = match m {
+                                None =>
+                                    Some(j.rank),
+                                Some(x) =>
+                                    if x < j.rank {
+                                        Some(j.rank)
+                                    } else {
+                                        Some(x)
+                                    }
+                            }
+                        }
+                    }
+                }
             }
+            m
+        } else {
+            None
         }
-        false
     }
 
-    fn is_straight(cards: &HashSet<Card>) -> bool {
+    fn is_straight(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
+            let mut m: Option<CardRank> = None;
             let mut v = vec![false; CardRanks.len()];
             for i in cards {
                 v[i.rank as usize] = true;
             }
             let mut c = 0;
-            for i in v {
-                if i {
+            for i in 0..v.len() {
+                if v[i] {
                     c += 1;
-                    if c == 5 {
-                        return true;
+                    if c >= 5 {
+                        m = Some(CardRanks[i]);
                     }
                 } else {
                     c = 0;
                 }
             }
+            m
+        } else {
+            None
         }
-        false
     }
 
 }
@@ -236,7 +289,7 @@ fn comb_test_straight_flush() {
         Card {rank: CardRank::Queen, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::StraightFlush);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::StraightFlush(CardRank::Ace));
 }
 
 #[test]
@@ -246,7 +299,7 @@ fn comb_test_four_of_a_kind() {
         Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
         Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FourOfAKind);   
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FourOfAKind(CardRank::Ace));   
 }
 
 #[test]
@@ -257,7 +310,7 @@ fn comb_test_full_house() {
         Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Diamonds}
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse);   
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse((CardRank::Ace, CardRank::King)));   
 }
 
 #[test]
@@ -268,7 +321,7 @@ fn comb_test_flush() {
         Card {rank: CardRank::Queen, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Flush);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Flush(CardRank::Ace));
 }
 
 #[test]
@@ -279,7 +332,7 @@ fn comb_test_straight() {
         Card {rank: CardRank::Queen, suit: CardSuit::Diamonds},
         Card {rank: CardRank::King, suit: CardSuit::Clubs},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Straight);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Straight(CardRank::Ace));
 }
 
 #[test]
@@ -288,7 +341,7 @@ fn comb_test_set() {
         Card {rank: CardRank::Ace, suit: CardSuit::Spades},
         Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
         Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Set);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Set(CardRank::Ace));
 }
 
 #[test]
@@ -298,7 +351,7 @@ fn comb_test_two_pairs() {
         Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Diamonds}
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::TwoPairs);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::TwoPairs((CardRank::Ace, CardRank::King)));
 }
 
 #[test]
@@ -306,14 +359,14 @@ fn comb_test_pair() {
     assert_eq!(Comb::new(vec![
         Card {rank: CardRank::Ace, suit: CardSuit::Spades},
         Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Pair);
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Pair(CardRank::Ace));
 }
 
 #[test]
 fn comb_test_highest_card() {
     assert_eq!(Comb::new(vec![
         Card {rank: CardRank::Ace, suit: CardSuit::Spades},
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::HighestCard);    
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::HighestCard(CardRank::Ace));    
 }
 
 #[test]
