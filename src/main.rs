@@ -21,7 +21,7 @@ enum CardRank {
 }
 
 
-const CardRanks: [CardRank; 13] = [
+const CARD_RANKS: [CardRank; 13] = [
     CardRank::Two,
     CardRank::Three,
     CardRank::Four,
@@ -45,7 +45,7 @@ enum CardSuit {
     Hearts,
 }
 
-const CardSuits: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
+const CARD_SUITS: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 struct Card {
@@ -127,24 +127,24 @@ impl Comb {
     fn is_straight_flush(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
             let mut m: Option<CardRank> = None;
-            for i in CardSuits.iter() {
-                let mut v = vec![false; CardRanks.len()];
+            for i in CARD_SUITS.iter() {
+                let mut v = vec![false; CARD_RANKS.len()];
                 for j in cards {
                     if j.suit == *i {
                         v[j.rank as usize] = true; 
                     }
                 }
                 let mut c = 0;
-                for j in 0..CardRanks.len() {
+                for j in 0..CARD_RANKS.len() {
                     if v[j] {
                         c += 1;
                         if c == 5 {
                             m = match m {
                                 None =>
-                                    Some(CardRanks[j]),
+                                    Some(CARD_RANKS[j]),
                                 Some(x) =>
-                                    if x < CardRanks[j] {
-                                        Some(CardRanks[j])
+                                    if x < CARD_RANKS[j] {
+                                        Some(CARD_RANKS[j])
                                     } else {
                                         Some(x)
                                     }
@@ -165,9 +165,9 @@ impl Comb {
     fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<(CardRank, CardRank)> {
         if cards.len() == x + y {
             let mut m: Option<(CardRank, CardRank)> = None;
-            for i in CardRanks.iter() {
-                for j in CardRanks.iter() {
-                    if i < j && !(y == 0 && *i != CardRanks[0]) {
+            for i in CARD_RANKS.iter() {
+                for j in CARD_RANKS.iter() {
+                    if i < j && !(y == 0 && *i != CARD_RANKS[0]) {
                         let (mut ci, mut cj) = (0, 0);
                         for k in cards {
                             if k.rank == *i {
@@ -201,7 +201,7 @@ impl Comb {
     fn is_x_of_a_kind(cards: &HashSet<Card>, x: usize) -> Option<CardRank> {
         match Comb::is_xy_of_a_kind(cards, x, 0) {
             None => None,
-            Some((a, b)) => Some(a),
+            Some((a, _)) => Some(a),
         }
     }
 
@@ -233,7 +233,7 @@ impl Comb {
     fn is_flush(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
             let mut m: Option<CardRank> = None;
-            for i in CardSuits.iter() {
+            for i in CARD_SUITS.iter() {
                 let mut c = 0;
                 for j in cards {
                     if j.suit == *i {
@@ -266,7 +266,7 @@ impl Comb {
     fn is_straight(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
             let mut m: Option<CardRank> = None;
-            let mut v = vec![false; CardRanks.len()];
+            let mut v = vec![false; CARD_RANKS.len()];
             for i in cards {
                 v[i.rank as usize] = true;
             }
@@ -275,7 +275,7 @@ impl Comb {
                 if v[i] {
                     c += 1;
                     if c >= 5 {
-                        m = Some(CardRanks[i]);
+                        m = Some(CARD_RANKS[i]);
                     }
                 } else {
                     c = 0;
@@ -426,8 +426,8 @@ struct Deck {
 impl Deck {
     pub fn new() -> Deck {
         let mut cards = Vec::<Card>::new();
-        for rank in CardRanks.iter() {
-            for suit in CardSuits.iter() {
+        for rank in CARD_RANKS.iter() {
+            for suit in CARD_SUITS.iter() {
                 cards.push(Card {rank: *rank, suit: *suit});
             }
         }
@@ -508,7 +508,7 @@ impl Game {
             let players_prev = (0..(players.len())).map(|x| (x + players.len() - 1) % players.len()).collect();
             let mut deck = Deck::new();
             for player in players.iter_mut() {
-                for i in 0..5 {
+                for _ in 0..5 {
                     player.cards.insert(deck.get_card().unwrap());
                 }
             }
@@ -580,6 +580,7 @@ impl Game {
                                                 }
                                                 let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
                                                 self.state = State::Active(player, new_board);
+                                                self.next_player();
                                                 Ok(())
                                             } else {
                                                 Err(StepError::InvalidComb)
@@ -625,8 +626,17 @@ impl Game {
         self.deck.size()
     }
 
-    pub fn is_player_active(&self, pid: usize) -> bool {
+    pub fn is_player_kicked(&self, pid: usize) -> bool {
         self.players_next[self.players_map[&pid]] == self.players_map[&pid]
+    }
+
+    pub fn game_winner(&self) -> Option<usize> {
+        let player = self.players_map[&self.get_stepping_player()];
+        if self.players_next[player] == player {
+            Some(self.get_stepping_player())
+        } else {
+            None
+        }
     }
 
 
@@ -651,7 +661,8 @@ impl Game {
 fn main() {
     let mut g = Game::new(vec![0, 1]).unwrap();
     dbg!(&g);
-    dbg!(&g.make_step(1, Step::GetCard));
+    dbg!(&g.make_step(g.get_stepping_player(), Step::GetCard));
+    dbg!(&g.make_step(g.get_stepping_player(), Step::GiveComb(g.get_player_cards(g.get_stepping_player()))));
     dbg!(&g);
 
 }
