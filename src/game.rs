@@ -2,6 +2,7 @@ use std::collections::{HashSet, HashMap};
 
 use rand::{thread_rng, Rng};
 
+
 use crate::card::*;
 use crate::comb::*;
 
@@ -28,13 +29,13 @@ impl Ord for Player {
 }
 
 #[derive(Clone, Debug)]
-struct Board {
-    comb: Comb,
-    cards: HashSet<Card>,
+pub struct Board {
+    pub comb: Comb,
+    pub cards: HashSet<Card>,
 }
 
 #[derive(Clone, Debug)]
-enum State {
+pub enum State {
     Active(usize, Board),
     Passive(usize),
 }
@@ -67,7 +68,6 @@ impl Deck {
     }
 }
 
-#[derive(Debug)]
 pub enum Step {
     GetCard,
     GiveComb(HashSet<Card>),
@@ -124,7 +124,7 @@ impl Game {
         if players_ids.len() < 52 / 5 {
             let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
-            let players_map = players.iter().enumerate().map(|x| (x.0, x.1.id)).collect();
+            let players_map = players.iter().enumerate().map(|x| (x.1.id, x.0)).collect();
             let players_next = (0..(players.len())).map(|x| (x + 1) % players.len()).collect();
             let players_prev = (0..(players.len())).map(|x| (x + players.len() - 1) % players.len()).collect();
             let mut deck = Deck::new();
@@ -258,6 +258,10 @@ impl Game {
         } else {
             None
         }
+    }
+
+    pub fn get_state_cards(&self) -> State {
+        self.state.clone()
     }
 
 
