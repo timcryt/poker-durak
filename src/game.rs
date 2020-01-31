@@ -87,7 +87,6 @@ pub struct Game {
 
 #[derive(Debug)]
 pub enum StepError {
-    InvalidPlayerID,
     InvalidStepType,
     InvalidCards,
     InvalidComb,
@@ -97,7 +96,6 @@ pub enum StepError {
 impl std::fmt::Display for StepError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            StepError::InvalidPlayerID => write!(f, "Вы не имеете права ходить сейчас"),
             StepError::InvalidStepType => write!(f, "Вы не имеете права делать данный тип шага"),
             StepError::InvalidCards    => write!(f, "У вас нет карт, чтобы сделать этот шаг"),
             StepError::InvalidComb     => write!(f, "Ваши карты не являются покерной комбинацией"),
@@ -109,7 +107,6 @@ impl std::fmt::Display for StepError {
 impl std::error::Error for StepError {
     fn description(&self) -> &str {
         match &self {
-            StepError::InvalidPlayerID => "Вы не имеете права ходить сейчас",
             StepError::InvalidStepType => "Вы не имеете права делать данный тип шага",
             StepError::InvalidCards    => "У вас нет карт, чтобы сделать этот шаг",
             StepError::InvalidComb     => "Ваши карты не являются покерной комбинацией",

@@ -159,7 +159,7 @@ fn make_step(game: &mut Game) -> usize {
             println!("Против вас есть комбинация:");
             print_cards(&board.comb.cards);
             println!("На доске также есть карты:");
-            print_cards(&board.cards.clone().difference(&board.comb.cards).map(|x| *x).collect());;
+            print_cards(&board.cards.clone().difference(&board.comb.cards).map(|x| *x).collect());
             println!("Ваши действия");
             println!("\t1. Перевести комбинация");
             println!("\t2. Взять комбинацию");
