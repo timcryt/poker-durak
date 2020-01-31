@@ -131,11 +131,11 @@ fn make_step(game: &mut Game) -> usize {
             println!("\t2. Выложить комбинацию");
             loop {
                 match get_int("Введите команду: ", 1, 2) {
-                    1 => match game.make_step(player, Step::GetCard) {
+                    1 => match game.make_step(Step::GetCard) {
                         Ok(()) => break,
                         Err(e) => println!("Ошибка: {}", e),
                     }
-                    2 => match game.make_step(player, Step::GiveComb(get_comb())){
+                    2 => match game.make_step(Step::GiveComb(get_comb())){
                         Ok(()) => break,
                         Err(e) => println!("Ошибка: {}", e)   
                     }
@@ -155,11 +155,11 @@ fn make_step(game: &mut Game) -> usize {
             println!("\t2. Взять комбинацию");
             loop {
                 match get_int("Введите команду: ", 1, 2) {
-                    1 => match game.make_step(player, Step::TransComb(get_comb())) {
+                    1 => match game.make_step(Step::TransComb(get_comb())) {
                         Ok(()) => break,
                         Err(e) => println!("Ошибка: {}", e),
                     }
-                    2 => match game.make_step(player, Step::GetComb) {
+                    2 => match game.make_step(Step::GetComb) {
                         Ok(()) => break,
                         Err(e) => println!("Ошибка: {}", e)   
                     }

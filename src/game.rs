@@ -146,82 +146,76 @@ impl Game {
         }   
     }
 
-    pub fn make_step(&mut self, pid: usize, step: Step) -> Result<(), StepError> {
+    pub fn make_step(&mut self, step: Step) -> Result<(), StepError> {
         match self.state.clone() {
             State::Passive(player) => {
-                if self.players_map[&pid] != player {
-                    Err(StepError::InvalidPlayerID)
-                } else {
-                    match step {
-                        Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
-                        Step::GetCard => {
-                            if self.deck.size() > 0 {
-                                self.players[player].cards.insert(self.deck.get_card().unwrap());  
-                            }
-                            self.next_player();
-                            Ok(())
+                let pid = self.players_map[&player];
+                match step {
+                    Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
+                    Step::GetCard => {
+                        if self.deck.size() > 0 {
+                            self.players[player].cards.insert(self.deck.get_card().unwrap());  
                         }
-                        Step::GiveComb(cards) => {
-                            if cards.is_subset(&self.players[player].cards) {
-                                match Comb::new(cards.clone()) {
-                                    Some(comb) => {
-                                        self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
-                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                            self.kick_player(pid);
-                                        }
-                                        self.state = State::Active(player, Board {cards, comb});
-                                        self.next_player();
-                                        Ok(())
-                                    },
-                                    None => Err(StepError::InvalidCards)
-                                }
-                            } else {
-                                Err(StepError::InvalidCards)
+                        self.next_player();
+                        Ok(())
+                    }
+                    Step::GiveComb(cards) => {
+                        if cards.is_subset(&self.players[player].cards) {
+                            match Comb::new(cards.clone()) {
+                                Some(comb) => {
+                                    self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
+                                    if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                        self.kick_player(pid);
+                                    }
+                                    self.state = State::Active(player, Board {cards, comb});
+                                    self.next_player();
+                                    Ok(())
+                                },
+                                None => Err(StepError::InvalidCards)
                             }
+                        } else {
+                            Err(StepError::InvalidCards)
                         }
                     }
                 }
             }
             State::Active(player, board) => {
-                if self.players_map[&pid] != player {
-                    Err(StepError::InvalidPlayerID)
-                } else {
-                    match step {
-                        Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
-                        Step::TransComb(comb) => {
-                            let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
-                            if a > 0 {
-                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
-                                    Err(StepError::InvalidCards)
-                                } else {
-                                    match Comb::new(comb.clone()) {
-                                        None => Err(StepError::InvalidComb),
-                                        Some(new_comb) => {
-                                            if new_comb > board.comb {
-                                                self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
-                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                                    self.kick_player(pid);
-                                                }
-                                                let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
-                                                self.state = State::Active(player, new_board);
-                                                self.next_player();
-                                                Ok(())
-                                            } else {
-                                                Err(StepError::WeakComb)
-                                            } 
-                                        }
+                let pid = self.players_map[&player];
+                match step {
+                    Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
+                    Step::TransComb(comb) => {
+                        let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
+                        if a > 0 {
+                            if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
+                                Err(StepError::InvalidCards)
+                            } else {
+                                match Comb::new(comb.clone()) {
+                                    None => Err(StepError::InvalidComb),
+                                    Some(new_comb) => {
+                                        if new_comb > board.comb {
+                                            self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
+                                            if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                                self.kick_player(pid);
+                                            }
+                                            let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
+                                            self.state = State::Active(player, new_board);
+                                            self.next_player();
+                                            Ok(())
+                                        } else {
+                                            Err(StepError::WeakComb)
+                                        } 
                                     }
                                 }
-                            } else {
-                                Err(StepError::InvalidCards)
                             }
+                        } else {
+                            Err(StepError::InvalidCards)
                         }
-                        Step::GetComb => {
-                            self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
-                            self.state = State::Passive(player);
-                            self.next_player();
-                            Ok(())
-                        }
+                    }
+                    Step::GetComb => {
+                        self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                        self.state = State::Passive(player);
+                        self.next_player();
+                        Ok(())
                     }
                 }
             }
