@@ -118,14 +118,26 @@ fn get_comb() -> HashSet<Card> {
     cards
 }
 
+fn card_pad(number: usize) -> &'static str {
+    match number {
+        10..=19 => "карт",
+        number => match number % 10 {
+            0 | 5..=9 => "карт",
+            1 => "карта",
+            _ => "карты"
+        }
+    }
+}
+
 fn make_step(game: &mut Game) -> usize {
     let player = game.get_stepping_player();
-    println!("Игрок {}", player);  
+    println!("Игрок {}", player);
+    println!("В колоде осталось {} {}", game.get_deck_size(), card_pad(game.get_deck_size()));
+    println!("Ваши карты: ");
+    print_cards(&game.get_player_cards(player));
     match game.get_state_cards() {
         State::Passive(_) => {
             println!("Против вас нет комбинации");
-            println!("Ваши карты: ");
-            print_cards(&game.get_player_cards(player));
             println!("Ваши действия:");
             println!("\t1. Взять карту");
             println!("\t2. Выложить комбинацию");
@@ -147,9 +159,7 @@ fn make_step(game: &mut Game) -> usize {
             println!("Против вас есть комбинация:");
             print_cards(&board.comb.cards);
             println!("На доске также есть карты:");
-            print_cards(&board.cards.clone().difference(&board.comb.cards).map(|x| *x).collect());
-            println!("Ваши карты:");
-            print_cards(&game.get_player_cards(player));
+            print_cards(&board.cards.clone().difference(&board.comb.cards).map(|x| *x).collect());;
             println!("Ваши действия");
             println!("\t1. Перевести комбинация");
             println!("\t2. Взять комбинацию");
@@ -185,4 +195,5 @@ fn main() {
             players -= make_step(&mut game);
         }
     }
+    println!("Победитель: игрок номер {}", game.game_winner().unwrap());
 }

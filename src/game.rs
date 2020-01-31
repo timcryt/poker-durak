@@ -149,7 +149,7 @@ impl Game {
     pub fn make_step(&mut self, step: Step) -> Result<(), StepError> {
         match self.state.clone() {
             State::Passive(player) => {
-                let pid = self.players_map[&player];
+                let pid = self.players[player].id;
                 match step {
                     Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
                     Step::GetCard => {
@@ -180,7 +180,7 @@ impl Game {
                 }
             }
             State::Active(player, board) => {
-                let pid = self.players_map[&player];
+                let pid = self.players[player].id;
                 match step {
                     Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
                     Step::TransComb(comb) => {
