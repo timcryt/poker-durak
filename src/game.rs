@@ -214,7 +214,7 @@ impl Game {
                             }
                         }
                         Step::GetComb => {
-                            self.players[player].cards = self.players[player].cards.union(&board.cards).map(|x| *x).collect();
+                            self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
                             self.state = State::Passive(player);
                             self.next_player();
                             Ok(())
