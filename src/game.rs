@@ -91,15 +91,17 @@ pub enum StepError {
     InvalidStepType,
     InvalidCards,
     InvalidComb,
+    WeakComb,
 }
 
 impl std::fmt::Display for StepError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            StepError::InvalidPlayerID => write!(f, "You can't make step now"),
-            StepError::InvalidStepType => write!(f, "You can't use this type of step now"),
-            StepError::InvalidCards    => write!(f, "You haven't these cards to make step"),
-            StepError::InvalidComb     => write!(f, "Your cards aren't poker combination (or it less strong, than sombination on board)"),
+            StepError::InvalidPlayerID => write!(f, "Вы не имеете права ходить сейчас"),
+            StepError::InvalidStepType => write!(f, "Вы не имеете права делать данный тип шага"),
+            StepError::InvalidCards    => write!(f, "У вас нет карт, чтобы сделать этот шаг"),
+            StepError::InvalidComb     => write!(f, "Ваши карты не являются покерной комбинацией"),
+            StepError::WeakComb        => write!(f, "Ваша комбинация слишком слаба")
         }
     }
 }
@@ -107,10 +109,11 @@ impl std::fmt::Display for StepError {
 impl std::error::Error for StepError {
     fn description(&self) -> &str {
         match &self {
-            StepError::InvalidPlayerID => "You can't make step now",
-            StepError::InvalidStepType => "You can't use this type of step now",
-            StepError::InvalidCards    => "You haven't these cards to make step",
-            StepError::InvalidComb     => "Your cards aren't poker combination (or it less strong, than sombination on board)",
+            StepError::InvalidPlayerID => "Вы не имеете права ходить сейчас",
+            StepError::InvalidStepType => "Вы не имеете права делать данный тип шага",
+            StepError::InvalidCards    => "У вас нет карт, чтобы сделать этот шаг",
+            StepError::InvalidComb     => "Ваши карты не являются покерной комбинацией",
+            StepError::WeakComb        => "Ваша комбинация слишком слаба"
         }
     }
 
@@ -204,7 +207,7 @@ impl Game {
                                                 self.next_player();
                                                 Ok(())
                                             } else {
-                                                Err(StepError::InvalidComb)
+                                                Err(StepError::WeakComb)
                                             } 
                                         }
                                     }
