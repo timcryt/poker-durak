@@ -188,7 +188,7 @@ impl Game {
                         Step::TransComb(comb) => {
                             let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
                             if a > 0 {
-                                if a + board.comb.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
+                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
                                     Err(StepError::InvalidCards)
                                 } else {
                                     match Comb::new(comb.clone()) {
