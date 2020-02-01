@@ -3,10 +3,13 @@ use std::collections::{HashSet, HashMap};
 use rand::{thread_rng, Rng};
 
 
+use serde::{Deserialize, Serialize};
+
+
 use crate::card::*;
 use crate::comb::*;
 
-const PLAYERS_CARDS = 5;
+const PLAYERS_CARDS: usize = 5;
 
 #[derive(PartialEq, Eq, Debug)]
 struct Player {
@@ -30,13 +33,13 @@ impl Ord for Player {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Board {
     pub comb: Comb,
     pub cards: HashSet<Card>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum State {
     Active(usize, Board),
     Passive(usize),
@@ -70,6 +73,7 @@ impl Deck {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum Step {
     GetCard,
     GiveComb(HashSet<Card>),

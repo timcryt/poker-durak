@@ -1,4 +1,6 @@
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CardRank {
     Two,
     Three,
@@ -32,7 +34,7 @@ pub const CARD_RANKS: [CardRank; 13] = [
     CardRank::Ace
 ];
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CardSuit {
     Spades,
     Clubs,
@@ -42,7 +44,7 @@ pub enum CardSuit {
 
 pub const CARD_SUITS: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Card {
     pub rank: CardRank,
     pub suit: CardSuit,

@@ -5,7 +5,9 @@ mod test;
 
 use crate::card::*;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Debug, Serialize, Deserialize)]
 enum CombRank {
     HighestCard(CardRank),
     Pair(CardRank),
@@ -18,7 +20,7 @@ enum CombRank {
     StraightFlush(CardRank),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Comb {
     pub cards: HashSet<Card>,
     rank: CombRank,
