@@ -6,6 +6,8 @@ use rand::{thread_rng, Rng};
 use crate::card::*;
 use crate::comb::*;
 
+const PLAYERS_CARDS = 5;
+
 #[derive(PartialEq, Eq, Debug)]
 struct Player {
     id: usize,
@@ -121,7 +123,7 @@ impl std::error::Error for StepError {
 
 impl Game {
     pub fn new(players_ids: Vec<usize>) -> Option<Game> {
-        if players_ids.len() < 52 / 5 {
+        if players_ids.len() < NUMBER_OF_CARDS / PLAYERS_CARDS {
             let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
             let players_map = players.iter().enumerate().map(|x| (x.1.id, x.0)).collect();
@@ -129,7 +131,7 @@ impl Game {
             let players_prev = (0..(players.len())).map(|x| (x + players.len() - 1) % players.len()).collect();
             let mut deck = Deck::new();
             for player in players.iter_mut() {
-                for _ in 0..5 {
+                for _ in 0..PLAYERS_CARDS {
                     player.cards.insert(deck.get_card().unwrap());
                 }
             }

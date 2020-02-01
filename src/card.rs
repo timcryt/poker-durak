@@ -48,6 +48,8 @@ pub struct Card {
     pub suit: CardSuit,
 }
 
+pub const NUMBER_OF_CARDS: usize = 52;
+
 impl PartialOrd for Card {
     fn partial_cmp(&self, other: &Card) -> Option<std::cmp::Ordering> {
         Some(self.rank.cmp(&other.rank))
