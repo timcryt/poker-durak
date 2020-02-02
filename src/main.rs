@@ -37,7 +37,7 @@ fn main() {
         counter: 0,
     }));
 
-    rouille::start_server("localhost:8000", move |request| {
+    rouille::start_server("127.0.0.1:8000", move |request| {
         router!(request,
             (GET) (/) => {
                 Response::from_file("text/html", std::fs::File::open("static/index.html").unwrap())
