@@ -92,8 +92,9 @@ pub struct Game {
     state: State,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum StepError {
+    InvalidPID,
     InvalidStepType,
     InvalidCards,
     InvalidComb,
@@ -103,6 +104,7 @@ pub enum StepError {
 impl std::fmt::Display for StepError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
+            StepError::InvalidPID      => write!(f, "Вы не можете соверщить шаг сейчас"),
             StepError::InvalidStepType => write!(f, "Вы не имеете права делать данный тип шага"),
             StepError::InvalidCards    => write!(f, "У вас нет карт, чтобы сделать этот шаг"),
             StepError::InvalidComb     => write!(f, "Ваши карты не являются покерной комбинацией"),
@@ -114,6 +116,7 @@ impl std::fmt::Display for StepError {
 impl std::error::Error for StepError {
     fn description(&self) -> &str {
         match &self {
+            StepError::InvalidPID      => "Вы не можете совершить шаг сейчас",
             StepError::InvalidStepType => "Вы не имеете права делать данный тип шага",
             StepError::InvalidCards    => "У вас нет карт, чтобы сделать этот шаг",
             StepError::InvalidComb     => "Ваши карты не являются покерной комбинацией",
@@ -150,77 +153,80 @@ impl Game {
         }   
     }
 
-    pub fn make_step(&mut self, step: Step) -> Result<(), StepError> {
+    pub fn make_step(&mut self, pid: usize, step: Step) -> Result<(), StepError> {
         let player = self.stepping_player;
-        match self.state.clone() {
-            State::Passive => {
-                let pid = self.players[player].id;
-                match step {
-                    Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
-                    Step::GetCard => {
-                        if self.deck.size() > 0 {
-                            self.players[player].cards.insert(self.deck.get_card().unwrap());  
-                        }
-                        self.next_player();
-                        Ok(())
-                    }
-                    Step::GiveComb(cards) => {
-                        if cards.is_subset(&self.players[player].cards) {
-                            match Comb::new(cards.clone()) {
-                                Some(comb) => {
-                                    self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
-                                    if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                        self.kick_player(pid);
-                                    }
-                                    self.state = State::Active(Board {cards, comb});
-                                    self.next_player();
-                                    Ok(())
-                                },
-                                None => Err(StepError::InvalidCards)
+        if self.players_map[&pid] != player {
+            Err(StepError::InvalidPID)
+        } else {
+            match self.state.clone() {
+                State::Passive => {
+                    match step {
+                        Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
+                        Step::GetCard => {
+                            if self.deck.size() > 0 {
+                                self.players[player].cards.insert(self.deck.get_card().unwrap());  
                             }
-                        } else {
-                            Err(StepError::InvalidCards)
+                            self.next_player();
+                            Ok(())
+                        }
+                        Step::GiveComb(cards) => {
+                            if cards.is_subset(&self.players[player].cards) {
+                                match Comb::new(cards.clone()) {
+                                    Some(comb) => {
+                                        self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
+                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                            self.kick_player(pid);
+                                        }
+                                        self.state = State::Active(Board {cards, comb});
+                                        self.next_player();
+                                        Ok(())
+                                    },
+                                    None => Err(StepError::InvalidCards)
+                                }
+                            } else {
+                                Err(StepError::InvalidCards)
+                            }
                         }
                     }
                 }
-            }
-            State::Active(board) => {
-                let pid = self.players[player].id;
-                match step {
-                    Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
-                    Step::TransComb(comb) => {
-                        let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
-                        if a > 0 {
-                            if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
-                                Err(StepError::InvalidCards)
-                            } else {
-                                match Comb::new(comb.clone()) {
-                                    None => Err(StepError::InvalidComb),
-                                    Some(new_comb) => {
-                                        if new_comb > board.comb {
-                                            self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
-                                            if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                                self.kick_player(pid);
-                                            }
-                                            let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
-                                            self.state = State::Active(new_board);
-                                            self.next_player();
-                                            Ok(())
-                                        } else {
-                                            Err(StepError::WeakComb)
-                                        } 
+                State::Active(board) => {
+                    let pid = self.players[player].id;
+                    match step {
+                        Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
+                        Step::TransComb(comb) => {
+                            let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
+                            if a > 0 {
+                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
+                                    Err(StepError::InvalidCards)
+                                } else {
+                                    match Comb::new(comb.clone()) {
+                                        None => Err(StepError::InvalidComb),
+                                        Some(new_comb) => {
+                                            if new_comb > board.comb {
+                                                self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
+                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                                    self.kick_player(pid);
+                                                }
+                                                let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
+                                                self.state = State::Active(new_board);
+                                                self.next_player();
+                                                Ok(())
+                                            } else {
+                                                Err(StepError::WeakComb)
+                                            } 
+                                        }
                                     }
                                 }
+                            } else {
+                                Err(StepError::InvalidCards)
                             }
-                        } else {
-                            Err(StepError::InvalidCards)
                         }
-                    }
-                    Step::GetComb => {
-                        self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
-                        self.state = State::Passive;
-                        self.next_player();
-                        Ok(())
+                        Step::GetComb => {
+                            self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                            self.state = State::Passive;
+                            self.next_player();
+                            Ok(())
+                        }
                     }
                 }
             }
@@ -235,7 +241,7 @@ impl Game {
     }
 
     pub fn get_stepping_player(&self) -> usize {
-        self.stepping_player
+        self.players[self.stepping_player].id
     }
 
     pub fn get_player_cards(&self, pid: usize) -> HashSet<Card> {
@@ -251,7 +257,7 @@ impl Game {
     }
 
     pub fn game_winner(&self) -> Option<usize> {
-        let player = self.players_map[&self.get_stepping_player()];
+        let player = self.stepping_player;
         if self.players_next[player] == player {
             Some(self.get_stepping_player())
         } else {

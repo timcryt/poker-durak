@@ -87,7 +87,6 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
             *run_flag = true;
         }
     });
-    dbg!();
 
     let now = SystemTime::now();
     while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL) {
@@ -112,7 +111,7 @@ enum JsonResponse {
     YourTurn(State),
     YouMadeStep(State, HashSet<Card>),
     PlayerExited(usize),
-    StepError,
+    StepError(StepError),
     JsonError,
     GameWinner,
     GameLoser,
@@ -125,7 +124,6 @@ enum JsonRequest {
 }
 
 fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>) {
-    dbg!();
     let pid = thread_rng().gen();
 
 
@@ -180,7 +178,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
         match message {
             websocket::Message::Text(txt) => {
-                dbg!(&txt);
                 let json_response = match serde_json::from_str(&txt) {
                     Ok(json_request) => match json_request {
                         JsonRequest::Ping => JsonResponse::Pong,
@@ -188,21 +185,17 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                             let mut game_pool = game_pool.lock().unwrap();
                             let game_id = game_pool.players[&pid];
                             let game = game_pool.games.get_mut(&game_id).unwrap();
-                            if game.get_stepping_player() == pid {
-                                match game.make_step(step) {
-                                    Ok(()) => {
-                                        your_turn_new = true;
-                                        if game.is_player_kicked(pid) {
-                                            game_pool.players.remove(&pid);
-                                            JsonResponse::PlayerExited(pid)
-                                        } else {
-                                            JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid))
-                                        }
-                                    },
-                                    Err(_) => JsonResponse::StepError,
-                                }
-                            } else {
-                                JsonResponse::StepError
+                            match game.make_step(pid, step) {
+                                Ok(()) => {
+                                    your_turn_new = true;
+                                    if game.is_player_kicked(pid) {
+                                        game_pool.players.remove(&pid);
+                                        JsonResponse::PlayerExited(pid)
+                                    } else {
+                                        JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid))
+                                    }
+                                },
+                                Err(e) => JsonResponse::StepError(e),
                             }
                         }
                     }
