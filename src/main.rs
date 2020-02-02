@@ -107,9 +107,9 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
 #[derive(Serialize)]
 enum JsonResponse {
     Pong,
-    YourCards(HashSet<Card>),
-    YourTurn(State),
-    YouMadeStep(State, HashSet<Card>),
+    YourCards(HashSet<Card>, usize),
+    YourTurn(State, usize),
+    YouMadeStep(State, HashSet<Card>, usize),
     PlayerExited(usize),
     StepError(StepError),
     JsonError,
@@ -156,6 +156,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let game = game_pool.games.get_mut(&game_id).unwrap();
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
             game.get_player_cards(pid),
+            game.get_deck_size()
         )).unwrap()).ok();
 
     }
@@ -170,6 +171,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             if game.get_stepping_player() == pid && your_turn_new {
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
                     game.get_state_cards(),
+                    game.get_deck_size(),
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
             }
@@ -192,7 +194,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                                         game_pool.players.remove(&pid);
                                         JsonResponse::PlayerExited(pid)
                                     } else {
-                                        JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid))
+                                        JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid), game.get_deck_size())
                                     }
                                 },
                                 Err(e) => JsonResponse::StepError(e),
