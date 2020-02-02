@@ -64,13 +64,19 @@ fn main() {
     });
 }
 
+
+
 fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websocket::Message> {
+    dbg!();
+    const HEARTBIT_INTERVAL: u64 = 15;
+
     let gotten = Arc::new(Mutex::new(None));
     let gotten_clone = Arc::clone(&gotten);
     let run_flag = Arc::new(Mutex::new(false));
     let run_flag_clone = Arc::clone(&run_flag);
 
     let websocket_clone = Arc::clone(websocket);
+    dbg!();
     let child = thread::spawn(move || {
         {
             let mut gotten_clone = gotten_clone.lock().unwrap();
@@ -79,9 +85,10 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
             *run_flag = true;
         }
     });
+    dbg!();
 
     let now = SystemTime::now();
-    while now.elapsed().unwrap() < Duration::from_secs(600) {
+    while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL) {
         sleep(Duration::from_millis(100));
         let run_flag = *Arc::clone(&run_flag).lock().unwrap();
         match run_flag {
@@ -92,6 +99,7 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
             false => (),
         }
     }
+    dbg!();
 
     None
 }
@@ -105,6 +113,8 @@ enum JsonResponse {
     PlayerExited(usize),
     StepError,
     JsonError,
+    GameWinner,
+    GameLoser,
 }
 
 #[derive(Deserialize)]
@@ -206,7 +216,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                     let mut game_pool = game_pool.lock().unwrap();
                     let game_id = game_pool.players[&pid];
                     let game = game_pool.games.get_mut(&game_id).unwrap();
-                    if game.is_player_kicked(pid) {
+                    if let Some(_) = game.game_winner() {
                         break;
                     }
                 }
@@ -218,12 +228,24 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
+    {
+        let mut game_pool = game_pool.lock().unwrap();
+        let game_id = game_pool.players[&pid];
+        let game = game_pool.games.get_mut(&game_id).unwrap();
+        if game.game_winner() == Some(pid) {
+            if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
+        } else {
+            if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
+        }
+    }
+
     println!("Player {} is exiting!", pid);
     {
         let mut game_pool = game_pool.lock().unwrap();
         if game_pool.players.contains_key(&pid) {
             let player_game = game_pool.players[&pid];
             game_pool.games.get_mut(&player_game).unwrap().kick_player(pid);
+            game_pool.players.remove(&pid);
         }
     }
     println!("Player {} exited!", pid);
