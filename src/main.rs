@@ -42,7 +42,7 @@ fn main() {
         router!(request,
             (GET) (/) => {
 
-                Response::html(std::fs::read_to_string("ws.html").unwrap())
+                Response::from_file("text/html", std::fs::File::open("ws.html").unwrap())
             },
 
             (GET) (/ws) => {
@@ -67,7 +67,6 @@ fn main() {
 
 
 fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websocket::Message> {
-    dbg!();
     const HEARTBIT_INTERVAL: u64 = 15;
 
     let gotten = Arc::new(Mutex::new(None));
@@ -76,7 +75,6 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
     let run_flag_clone = Arc::clone(&run_flag);
 
     let websocket_clone = Arc::clone(websocket);
-    dbg!();
     let child = thread::spawn(move || {
         {
             let mut gotten_clone = gotten_clone.lock().unwrap();
@@ -99,7 +97,6 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
             false => (),
         }
     }
-    dbg!();
 
     None
 }
@@ -157,11 +154,10 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let game = game_pool.games.get_mut(&game_id).unwrap();
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
             game.get_player_cards(pid),
-        )).unwrap());
+        )).unwrap()).ok();
 
     }
 
-    let mut now = SystemTime::now();
     let mut your_turn_new = true;
 
     while let Some(message) = websocket_next(&websocket) {
@@ -172,7 +168,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             if game.get_stepping_player() == pid && your_turn_new {
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
                     game.get_state_cards(),
-                )).unwrap()); 
+                )).unwrap()).ok(); 
                 your_turn_new = false; 
             }
     
