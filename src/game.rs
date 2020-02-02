@@ -167,9 +167,11 @@ impl Game {
                         Step::GetCard => {
                             if self.deck.size() > 0 {
                                 self.players[player].cards.insert(self.deck.get_card().unwrap());  
+                                self.next_player();
+                                Ok(())
+                            } else {
+                                Err(StepError::InvalidStepType)
                             }
-                            self.next_player();
-                            Ok(())
                         }
                         Step::GiveComb(cards) => {
                             if cards.is_subset(&self.players[player].cards) {
