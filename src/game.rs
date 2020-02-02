@@ -41,8 +41,8 @@ pub struct Board {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum State {
-    Active(usize, Board),
-    Passive(usize),
+    Active(Board),
+    Passive,
 }
 
 #[derive(Debug)]
@@ -87,6 +87,7 @@ pub struct Game {
     players_prev: Vec<usize>,
     players_next: Vec<usize>,
     players_map: HashMap<usize, usize>,
+    stepping_player: usize,
     deck: Deck,
     state: State,
 }
@@ -140,18 +141,19 @@ impl Game {
                 }
             }
 
-            let state = State::Passive(Game::player_min(&players));
+            let state = State::Passive;
+            let stepping_player = Game::player_min(&players);
             
-
-            Some(Game {players, players_prev, players_next, players_map, deck, state})
+            Some(Game {players, stepping_player, players_prev, players_next, players_map, deck, state})
         } else {
             None
         }   
     }
 
     pub fn make_step(&mut self, step: Step) -> Result<(), StepError> {
+        let player = self.stepping_player;
         match self.state.clone() {
-            State::Passive(player) => {
+            State::Passive => {
                 let pid = self.players[player].id;
                 match step {
                     Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
@@ -170,7 +172,7 @@ impl Game {
                                     if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
                                         self.kick_player(pid);
                                     }
-                                    self.state = State::Active(player, Board {cards, comb});
+                                    self.state = State::Active(Board {cards, comb});
                                     self.next_player();
                                     Ok(())
                                 },
@@ -182,7 +184,7 @@ impl Game {
                     }
                 }
             }
-            State::Active(player, board) => {
+            State::Active(board) => {
                 let pid = self.players[player].id;
                 match step {
                     Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
@@ -201,7 +203,7 @@ impl Game {
                                                 self.kick_player(pid);
                                             }
                                             let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
-                                            self.state = State::Active(player, new_board);
+                                            self.state = State::Active(new_board);
                                             self.next_player();
                                             Ok(())
                                         } else {
@@ -216,7 +218,7 @@ impl Game {
                     }
                     Step::GetComb => {
                         self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
-                        self.state = State::Passive(player);
+                        self.state = State::Passive;
                         self.next_player();
                         Ok(())
                     }
@@ -233,10 +235,7 @@ impl Game {
     }
 
     pub fn get_stepping_player(&self) -> usize {
-        match &self.state {
-            State::Passive(player) => self.players[*player].id,
-            State::Active(player, _) => self.players[*player].id,
-        }
+        self.stepping_player
     }
 
     pub fn get_player_cards(&self, pid: usize) -> HashSet<Card> {
@@ -266,10 +265,8 @@ impl Game {
 
 
     fn next_player(&mut self) {
-        self.state = match self.state.clone() {
-            State::Passive(player) => State::Passive(self.players_next[player]),
-            State::Active(player, board) => State::Active(self.players_next[player], board),
-        };
+        let player = self.stepping_player;
+        self.stepping_player = self.players_next[player];
     }
 
     fn player_min(players: &Vec<Player>) -> usize {
