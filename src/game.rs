@@ -11,9 +11,11 @@ use crate::comb::*;
 
 const PLAYERS_CARDS: usize = 5;
 
+type PID = usize;
+
 #[derive(PartialEq, Eq, Debug)]
 struct Player {
-    id: usize,
+    id: PID,
     cards: HashSet<Card>,
 }
 
@@ -86,7 +88,7 @@ pub struct Game {
     players: Vec<Player>,
     players_prev: Vec<usize>,
     players_next: Vec<usize>,
-    players_map: HashMap<usize, usize>,
+    players_map: HashMap<PID, usize>,
     stepping_player: usize,
     deck: Deck,
     state: State,
@@ -130,7 +132,7 @@ impl std::error::Error for StepError {
 }
 
 impl Game {
-    pub fn new(players_ids: Vec<usize>) -> Option<Game> {
+    pub fn new(players_ids: Vec<PID>) -> Option<Game> {
         if players_ids.len() < NUMBER_OF_CARDS / PLAYERS_CARDS {
             let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
@@ -153,7 +155,7 @@ impl Game {
         }   
     }
 
-    pub fn make_step(&mut self, pid: usize, step: Step) -> Result<(), StepError> {
+    pub fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
         let player = self.stepping_player;
         if self.players_map[&pid] != player {
             Err(StepError::InvalidPID)
@@ -233,18 +235,18 @@ impl Game {
         }
     }
 
-    pub fn kick_player(&mut self, pid: usize) {
+    pub fn kick_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
         self.players_next[self.players_prev[player]] = self.players_next[player];
         self.players_prev[self.players_next[player]] = self.players_prev[player];
         self.players_next[player] = player; 
     }
 
-    pub fn get_stepping_player(&self) -> usize {
+    pub fn get_stepping_player(&self) -> PID {
         self.players[self.stepping_player].id
     }
 
-    pub fn get_player_cards(&self, pid: usize) -> HashSet<Card> {
+    pub fn get_player_cards(&self, pid: PID) -> HashSet<Card> {
         self.players[self.players_map[&pid]].cards.clone()
     }
 
@@ -252,11 +254,11 @@ impl Game {
         self.deck.size()
     }
 
-    pub fn is_player_kicked(&self, pid: usize) -> bool {
+    pub fn is_player_kicked(&self, pid: PID) -> bool {
         self.players_next[self.players_map[&pid]] == self.players_map[&pid]
     }
 
-    pub fn game_winner(&self) -> Option<usize> {
+    pub fn game_winner(&self) -> Option<PID> {
         let player = self.stepping_player;
         if self.players_next[player] == player {
             Some(self.get_stepping_player())
