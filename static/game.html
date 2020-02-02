@@ -20,10 +20,10 @@
     <body onload="setInterval(heartbit, 1000)">
         <p>Веб интерфейс игры "покерный дурак", версия 0.1.0</p>
         <p><a href="/about" target="_blank">Об игре</a></p>
-        <p><form onsubmit="send(document.getElementById('msg').value); return false;">
-        <input type="text" id="msg" />
-        <button type="submit">Отправить</button>
-        </form></p>
+        <p>
+            <input type="text" id="msg" />
+            <button onclick="send(document.getElementById('msg').value)" size="80">Отправить</button>
+        </p>
         <p>Получено: </p>
         <p id="result"></p>
     </body>
