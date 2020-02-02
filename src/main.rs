@@ -29,7 +29,6 @@ struct GamePool {
 }
 
 fn main() {
-
     println!("Now listening on localhost:8000");
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
@@ -41,13 +40,18 @@ fn main() {
     rouille::start_server("localhost:8000", move |request| {
         router!(request,
             (GET) (/) => {
+                Response::from_file("text/html", std::fs::File::open("static/index.html").unwrap())
+            },
 
-                Response::from_file("text/html", std::fs::File::open("ws.html").unwrap())
+            (GET) (/game) => {
+                Response::from_file("text/html", std::fs::File::open("static/game.html").unwrap())
+            },
+
+            (GET) (/about) => {
+                Response::from_file("text/html", std::fs::File::open("static/about.html").unwrap())
             },
 
             (GET) (/ws) => {
-
-
                 let (response, websocket) = try_or_400!(websocket::start(&request, Some("echo")));
                 let game_pool = Arc::clone(&game_pool);
 
@@ -59,7 +63,7 @@ fn main() {
                 response
             },
 
-            _ => rouille::Response::empty_404()
+            _ => rouille::Response::from_file("text/html", std::fs::File::open("static/404.html").unwrap()).with_status_code(404)
         )
     });
 }

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:8000/ws", "echo");
+            function send(data) {{
+                socket.send(data);
+            }}
+            socket.onmessage = function(event) {{
+                if (event.data != "\"Pong\"") {
+                    document.getElementById('result').innerHTML += event.data + '<br />';
+                }
+            }}
+            heartbit = function() {
+                send("\"Ping\"");
+            }
+        </script>
+    </head>
+    <body onload="setInterval(heartbit, 1000)">
+        <p>Веб интерфейс игры "покерный дурак", версия 0.1.0</p>
+        <p><a href="/about" target="_blank">Об игре</a></p>
+        <p><form onsubmit="send(document.getElementById('msg').value); return false;">
+        <input type="text" id="msg" />
+        <button type="submit">Отправить</button>
+        </form></p>
+        <p>Получено: </p>
+        <p id="result"></p>
+    </body>
+</html>
+
+
