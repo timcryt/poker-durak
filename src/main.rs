@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::env::args;
 use std::sync::{Mutex, Arc};
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -29,7 +30,14 @@ struct GamePool {
 }
 
 fn main() {
-    println!("Now listening on localhost:8000");
+    let mut args = args();
+    args.next();
+    let addr = match args.next() {
+        Some(arg) => arg,
+        None => "127.0.0.1:8000".to_string()
+    };
+    
+    println!("Now listening on {}", addr);
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
         players: HashMap::new(),
@@ -37,7 +45,7 @@ fn main() {
         counter: 0,
     }));
 
-    rouille::start_server("127.0.0.1:8000", move |request| {
+    rouille::start_server(&addr, move |request| {
         router!(request,
             (GET) (/) => {
                 Response::from_file("text/html", std::fs::File::open("static/index.html").unwrap())
