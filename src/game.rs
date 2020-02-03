@@ -183,7 +183,7 @@ impl Game {
                                         
                                         if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
                                             self.winner = Some(player);
-                                            self.kick_player(pid);
+                                            self.win_player(pid);
                                         } else {
                                             self.next_player();
                                         }
@@ -218,7 +218,7 @@ impl Game {
                                                 
                                                 if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
                                                     self.winner = Some(player);
-                                                    self.kick_player(pid);
+                                                    self.win_player(pid);
                                                 } else {
                                                     self.next_player();
                                                 }
@@ -247,8 +247,28 @@ impl Game {
         }
     }
 
-    pub fn kick_player(&mut self, pid: PID) {
+    fn kick_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
+
+        if self.players_next[player] == self.players_prev[player] && self.winner == None {
+            self.winner = Some(self.players_next[player]);
+        }
+
+        self.players_next[self.players_prev[player]] = self.players_next[player];
+        self.players_prev[self.players_next[player]] = self.players_prev[player];
+        self.players_next[player] = player; 
+        if self.get_stepping_player() == pid {
+            self.next_player();
+        }
+    }
+
+    pub fn win_player(&mut self, pid: PID) {
+        let player = self.players_map[&pid];
+
+        if self.players_next[player] == self.players_prev[player] && self.winner == None {
+            self.winner = Some(player);
+        }
+
         self.players_next[self.players_prev[player]] = self.players_next[player];
         self.players_prev[self.players_next[player]] = self.players_prev[player];
         self.players_next[player] = player; 

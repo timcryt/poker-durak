@@ -122,7 +122,6 @@ enum JsonResponse {
     YourCards(HashSet<Card>, usize),
     YourTurn(State, HashSet<Card>, usize),
     YouMadeStep(State, HashSet<Card>, usize),
-    PlayerExited(usize),
     StepError(StepError),
     JsonError,
     GameWinner,
@@ -204,8 +203,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                                 Ok(()) => {
                                     your_turn_new = true;
                                     if game.is_player_kicked(pid) {
-                                        game_pool.players.remove(&pid);
-                                        JsonResponse::PlayerExited(pid)
+                                        break;
                                     } else {
                                         JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid), game.get_deck_size())
                                     }
@@ -240,9 +238,11 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let mut game_pool = game_pool.lock().unwrap();
         let game_id = game_pool.players[&pid];
         let game = game_pool.games.get_mut(&game_id).unwrap();
+        game.kick_player(pid);
         if game.game_winner() == Some(pid) {
             if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
         } else {
+            dbg!(game.game_winner());
             if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
         }
     }
