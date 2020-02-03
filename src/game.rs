@@ -247,7 +247,7 @@ impl Game {
         }
     }
 
-    fn kick_player(&mut self, pid: PID) {
+    pub fn kick_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
 
         if self.players_next[player] == self.players_prev[player] && self.winner == None {
@@ -262,7 +262,7 @@ impl Game {
         }
     }
 
-    pub fn win_player(&mut self, pid: PID) {
+    fn win_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
 
         if self.players_next[player] == self.players_prev[player] && self.winner == None {

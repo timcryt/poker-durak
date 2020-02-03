@@ -242,7 +242,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         if game.game_winner() == Some(pid) {
             if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
         } else {
-            dbg!(game.game_winner());
             if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
         }
     }
