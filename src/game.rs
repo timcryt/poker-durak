@@ -304,9 +304,11 @@ impl Game {
         let player = self.get_stepping_player();
         self.next_player();
 
-        while self.get_deck_size() > 0 && self.get_stepping_player() != player {
-            let player = self.get_stepping_player();
-            self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+        while  self.get_stepping_player() != player {
+            if self.get_deck_size() > 0 {
+                let player = self.get_stepping_player();
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            }
             self.next_player();
         }
     }
