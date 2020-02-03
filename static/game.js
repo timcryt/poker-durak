@@ -65,9 +65,11 @@ socket.onmessage = function(event) {{
             document.getElementById('cards').innerHTML = print_cards(data['YourCards'][0]);
             document.getElementById('deck_size').innerText = JSON.stringify(data['YourCards'][1]);
         } else if (data['YourTurn']) {
+            data = data['YourTurn'];
             document.getElementById('your_turn').innerText = 'Да';
-            document.getElementById('deck_size').innerText = JSON.stringify(data['YourTurn'][1]);
-            refresh_state(data['YourTurn'][0]);
+            document.getElementById('cards').innerHTML = print_cards(data[1]);
+            document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
+            refresh_state(data[0]);
             
         } else if (data['YouMadeStep']) {
             data = data['YouMadeStep'];

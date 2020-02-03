@@ -36,7 +36,7 @@ fn main() {
         Some(arg) => arg,
         None => "127.0.0.1:8000".to_string()
     };
-    
+
     println!("Now listening on {}", addr);
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
@@ -120,7 +120,7 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
 enum JsonResponse {
     Pong,
     YourCards(HashSet<Card>, usize),
-    YourTurn(State, usize),
+    YourTurn(State, HashSet<Card>, usize),
     YouMadeStep(State, HashSet<Card>, usize),
     PlayerExited(usize),
     StepError(StepError),
@@ -183,6 +183,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             if game.get_stepping_player() == pid && your_turn_new {
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
                     game.get_state_cards(),
+                    game.get_player_cards(pid),
                     game.get_deck_size(),
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
