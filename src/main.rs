@@ -47,6 +47,10 @@ fn main() {
                 Response::from_file("text/html", std::fs::File::open("static/game.html").unwrap())
             },
 
+            (GET) (/game_script) => {
+                Response::from_file("text/javascript", std::fs::File::open("static/game.js").unwrap())
+            },
+
             (GET) (/about) => {
                 Response::from_file("text/html", std::fs::File::open("static/about.html").unwrap())
             },
