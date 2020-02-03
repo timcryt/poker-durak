@@ -3,6 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <script type="text/javascript" src="/game_script"></script>
+        <style>.resp {margin-left: 48pt};</style>
     </head>
     <body onload="setInterval(heartbit, 1000)">
         <p>Веб интерфейс игры "покерный дурак", версия 0.2.0</p>
@@ -11,13 +12,38 @@
             <input type="text" id="msg" />
             <button onclick="send(document.getElementById('msg').value)" size="80">Отправить</button>
         </p>
-        <p>Ваш ход: <span id="your_turn">Нет</span></p>
-        <p>Ваши карты: <span id="cards"></span></p>
-        <p>Состояние: <span id="state"></span></p>
-        <p>Комбинация: <span id="comb"></span></p>
-        <p>Карты на доске: <span id="board"></span></p>
-        <p>Карт в колоде: <span id="deck_size"></span></p>
-        <p>Ответ сервера: <span id="result"></span></p>
+        
+        <p>
+            <b>Ваш ход:</b><br /> 
+            <div class="resp"><span id="your_turn">Нет</span></div>
+        </p>
+        
+        <p>
+            <b>Ваши карты:</b><br /> 
+            <div class="resp"><span id="cards"></span></div>
+        </p>
+        
+        <p>
+            <b>Состояние:</b><br /> 
+            <div class="resp"><span id="state"></span></div>
+        </p>
+        
+        <p>
+            <b>Комбинация:</b><br /> 
+            <div class="resp"><span id="comb"></span></div>
+        </p>
+        
+        <p>
+            <b>Карты на доске:</b><br /> 
+            <div class="resp"><span id="board"></span></div>
+        </p>
+        
+        <p><b>Карт в колоде:</b><span id="deck_size"></span></p>
+        
+        <p>
+            <b>Ответ сервера:</b><br /> 
+            <div class="resp"><span id="result"></span></div>
+        </p>
     </body>
 </html>
 
