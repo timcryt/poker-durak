@@ -25,6 +25,7 @@ use crate::card::*;
 struct GamePool {
     games: HashMap<usize, Game>,
     players: HashMap<usize, usize>,
+    rev_players: HashMap<usize, HashSet<usize>>,
     waiting_players: HashSet<usize>,
     counter: usize,
 }
@@ -41,6 +42,7 @@ fn main() {
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
         players: HashMap::new(),
+        rev_players: HashMap::new(),
         waiting_players: HashSet::new(),
         counter: 0,
     }));
@@ -63,6 +65,14 @@ fn main() {
                 Response::from_file("text/html", std::fs::File::open("static/about.html").unwrap())
             },
 
+            (GET) (/game_winner) => {
+                Response::from_file("text/html", std::fs::File::open("static/winner.html").unwrap())
+            },
+
+            (GET) (/game_loser) => {
+                Response::from_file("text/html", std::fs::File::open("static/loser.html").unwrap())
+            },
+
             (GET) (/ws) => {
                 let (response, websocket) = try_or_400!(websocket::start(&request, Some("echo")));
                 let game_pool = Arc::clone(&game_pool);
@@ -73,6 +83,27 @@ fn main() {
                 });
 
                 response
+            },
+
+            (GET) (/stat) => {
+                let game_pool = Arc::clone(&game_pool); 
+                let game_pool = game_pool.lock().unwrap();
+                let all_games = game_pool.counter;
+                let now_games = game_pool.games.len();
+                Response::html(format!(r#"
+<html>
+    <head>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <h1>Статистика игры покерный дурак</h1>
+        <p>
+            Всего сыграно игр: {}<br />
+            В том числе играется сейчас: {}<br />
+        </p>
+    </body>
+</html>
+"#, all_games, now_games))
             },
 
             _ => rouille::Response::from_file("text/html", std::fs::File::open("static/404.html").unwrap()).with_status_code(404)
@@ -143,14 +174,16 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
 
     if game_pool.lock().unwrap().waiting_players.len() >= 2 {
-        let players = game_pool.lock().unwrap().waiting_players.iter().map(|x| *x).collect::<Vec<_>>();
-        game_pool.lock().unwrap().counter += 1;
-        let counter = game_pool.lock().unwrap().counter;
-        game_pool.lock().unwrap().games.insert(counter, Game::new(players.clone()).unwrap());
+        let mut game_pool = game_pool.lock().unwrap();
+        let players = game_pool.waiting_players.iter().map(|x| *x).collect::<Vec<_>>();
+        game_pool.counter += 1;
+        let counter = game_pool.counter;
+        game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
+        game_pool.games.insert(counter, Game::new(players.clone()).unwrap());
         for player in players {
-            game_pool.lock().unwrap().players.insert(player, counter);
+            game_pool.players.insert(player, counter);
         }
-        game_pool.lock().unwrap().waiting_players.clear();
+        game_pool.waiting_players.clear();
     } else {
         loop {
             sleep(Duration::from_millis(1000));
@@ -159,6 +192,8 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             }
         }
     }
+
+    let gid = game_pool.lock().unwrap().players[&pid];
 
     println!("Player {} is playing!", pid);
     {
@@ -253,6 +288,10 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             let player_game = game_pool.players[&pid];
             game_pool.games.get_mut(&player_game).unwrap().kick_player(pid);
             game_pool.players.remove(&pid);
+        }
+        game_pool.rev_players.get_mut(&gid).unwrap().remove(&pid);
+        if game_pool.rev_players[&gid].len() == 0 {
+            game_pool.games.remove(&gid);
         }
     }
     println!("Player {} exited!", pid);
