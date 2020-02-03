@@ -236,6 +236,7 @@ impl Game {
                         }
                         Step::GetComb => {
                             self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                            self.cards_for_winners();
                             self.state = State::Passive;
                             self.next_player();
                             Ok(())
@@ -297,5 +298,16 @@ impl Game {
             }
         }
         return mini;
+    }
+
+    fn cards_for_winners(&mut self) {
+        let player = self.get_stepping_player();
+        self.next_player();
+
+        while self.get_deck_size() > 0 && self.get_stepping_player() != player {
+            let player = self.get_stepping_player();
+            self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            self.next_player();
+        }
     }
 }
