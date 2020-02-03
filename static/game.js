@@ -75,6 +75,7 @@ socket.onmessage = function(event) {{
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
             refresh_state(data[0]);
+            clear_cards();
         }
         document.getElementById('resp').innerText = event.data;
     }
