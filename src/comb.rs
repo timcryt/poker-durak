@@ -115,7 +115,7 @@ impl Comb {
             let mut m: Option<(CardRank, CardRank)> = None;
             for i in CARD_RANKS.iter() {
                 for j in CARD_RANKS.iter() {
-                    if i < j && !(y == 0 && *i != CARD_RANKS[0]) {
+                    if i < j {
                         let (mut ci, mut cj) = (0, 0);
                         for k in cards {
                             if k.rank == *i {
@@ -147,9 +147,32 @@ impl Comb {
     }
 
     fn is_x_of_a_kind(cards: &HashSet<Card>, x: usize) -> Option<CardRank> {
-        match Comb::is_xy_of_a_kind(cards, x, 0) {
-            None => None,
-            Some((a, _)) => Some(a),
+        if cards.len() == x {
+            let mut m: Option<CardRank> = None;
+            for i in CARD_RANKS.iter() {
+                let mut c = 0;
+                for k in cards {
+                    if k.rank == *i {
+                        c += 1
+                    }
+                    if c >= x  {
+                        m = match m {
+                            None =>
+                                Some(*i),
+                                Some(x) => {
+                                    if x < *i {
+                                        Some(*i)
+                                    } else {
+                                        Some(x)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            m
+        } else {
+            None
         }
     }
 
