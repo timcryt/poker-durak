@@ -90,6 +90,7 @@ pub struct Game {
     players_next: Vec<usize>,
     players_map: HashMap<PID, usize>,
     stepping_player: usize,
+    winner: Option<usize>,
     deck: Deck,
     state: State,
 }
@@ -149,7 +150,7 @@ impl Game {
             let state = State::Passive;
             let stepping_player = Game::player_min(&players);
             
-            Some(Game {players, stepping_player, players_prev, players_next, players_map, deck, state})
+            Some(Game {players, stepping_player, players_prev, players_next, players_map, winner: None, deck, state})
         } else {
             None
         }   
@@ -178,11 +179,15 @@ impl Game {
                                 match Comb::new(cards.clone()) {
                                     Some(comb) => {
                                         self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
-                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                            self.kick_player(pid);
-                                        }
                                         self.state = State::Active(Board {cards, comb});
-                                        self.next_player();
+                                        
+                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                            self.winner = Some(player);
+                                            self.kick_player(pid);
+                                        } else {
+                                            self.next_player();
+                                        }
+                                        
                                         Ok(())
                                     },
                                     None => Err(StepError::InvalidCards)
@@ -208,12 +213,16 @@ impl Game {
                                         Some(new_comb) => {
                                             if new_comb > board.comb {
                                                 self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
-                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                                    self.kick_player(pid);
-                                                }
                                                 let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
                                                 self.state = State::Active(new_board);
-                                                self.next_player();
+                                                
+                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+                                                    self.winner = Some(player);
+                                                    self.kick_player(pid);
+                                                } else {
+                                                    self.next_player();
+                                                }
+
                                                 Ok(())
                                             } else {
                                                 Err(StepError::WeakComb)
@@ -242,6 +251,9 @@ impl Game {
         self.players_next[self.players_prev[player]] = self.players_next[player];
         self.players_prev[self.players_next[player]] = self.players_prev[player];
         self.players_next[player] = player; 
+        if self.get_stepping_player() == pid {
+            self.next_player();
+        }
     }
 
     pub fn get_stepping_player(&self) -> PID {
@@ -261,11 +273,9 @@ impl Game {
     }
 
     pub fn game_winner(&self) -> Option<PID> {
-        let player = self.stepping_player;
-        if self.players_next[player] == player {
-            Some(self.get_stepping_player())
-        } else {
-            None
+        match self.winner {
+            None => None,
+            Some(winner) => Some(self.players[winner].id),
         }
     }
 
