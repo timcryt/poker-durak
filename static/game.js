@@ -1,5 +1,7 @@
 var socket = new WebSocket('ws://localhost:8000/ws', 'echo');
 var cards = [];
+var is_your_turn = false;
+var deck_size = 0;
 
 function send(data) {{
     if (JSON.parse(data) != 'Ping') {
@@ -64,20 +66,28 @@ socket.onmessage = function(event) {{
         if (data['YourCards']) {
             document.getElementById('cards').innerHTML = print_cards(data['YourCards'][0]);
             document.getElementById('deck_size').innerText = JSON.stringify(data['YourCards'][1]);
+            deck_size = data['YourCards'][1] + 0;
         } else if (data['YourTurn']) {
             data = data['YourTurn'];
             document.getElementById('your_turn').innerText = 'Да';
+            is_your_turn = true;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
-            refresh_state(data[0]);
-            
+            deck_size = data[2] + 0;
+            refresh_state(data[0]);    
         } else if (data['YouMadeStep']) {
             data = data['YouMadeStep'];
             document.getElementById('your_turn').innerText = 'Нет';
+            is_your_turn = false;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
+            deck_size = data[2] + 0;
             refresh_state(data[0]);
             clear_cards();
+        } else if (data == 'GameWinner') {
+            location.replace('/game_winner');
+        } else if (data == 'GameLoser') {
+            location.replace('/game_loser');
         }
         document.getElementById('resp').innerText = event.data;
     }
@@ -98,6 +108,16 @@ function set_state(state) {
         document.getElementById('TransCombBut').style.visibility = 'hidden';
         document.getElementById('GetCombBut').style.visibility = 'hidden';
         document.getElementById('StateActDiv').style.display = 'none';
+    }
+
+    if (!is_your_turn) {
+        document.getElementById('GetCardBut').style.visibility = 'hidden';
+        document.getElementById('GiveCombBut').style.visibility = 'hidden';
+        document.getElementById('TransCombBut').style.visibility = 'hidden';
+        document.getElementById('GetCombBut').style.visibility = 'hidden';        
+    }
+    if (deck_size == 0) {
+        document.getElementById('GetCardBut').style.visibility = 'hidden';
     }
 }
 
