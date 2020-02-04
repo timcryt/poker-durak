@@ -86,7 +86,6 @@ fn main() {
             },
 
             (GET) (/stat) => {
-                let game_pool = Arc::clone(&game_pool); 
                 let game_pool = game_pool.lock().unwrap();
                 let all_games = game_pool.counter;
                 let now_games = game_pool.games.len();
@@ -186,9 +185,17 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         game_pool.waiting_players.clear();
     } else {
         loop {
-            sleep(Duration::from_millis(1000));
-            if game_pool.lock().unwrap().players.contains_key(&pid) {
-                break
+            let message = websocket_next(&websocket);
+            if message == None {
+                println!("Player {} is exiting!", pid);
+                game_pool.lock().unwrap().waiting_players.remove(&pid);
+                println!("Player {} exited!", pid);
+                return;
+            } else {
+                sleep(Duration::from_millis(1000));
+                if game_pool.lock().unwrap().players.contains_key(&pid) {
+                    break
+                }
             }
         }
     }
