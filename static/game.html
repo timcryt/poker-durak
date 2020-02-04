@@ -7,7 +7,10 @@
     </head>
     <body onload="setInterval(heartbit, 1000);set_state(false);">
         <p>Веб интерфейс игры "покерный дурак", версия 0.3.0</p>
-        <p><a href="/about" target="_blank">Об игре</a></p>
+        <p>
+            <a href="/about" target="_blank">Об игре</a>
+            <b id="NetStat" style="color: orange">Соединение не установлено</b>
+        </p>
         <p>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetCard'}))" id="GetCardBut">Взять карту</button>
             <button onclick="send(JSON.stringify({'MakeStep' : {'GiveComb': cards}}))" id="GiveCombBut">Выложить комбинацию</button>

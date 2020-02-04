@@ -1,7 +1,8 @@
-var socket = new WebSocket('ws://localhost:8000/ws', 'echo');
+var socket = new WebSocket('ws://127.0.0.1:8000/ws', 'echo');
 var cards = [];
 var is_your_turn = false;
 var deck_size = 0;
+var net_time = 0;
 
 function send(data) {{
     if (JSON.parse(data) != 'Ping') {
@@ -90,6 +91,9 @@ socket.onmessage = function(event) {{
             location.replace('/game_loser');
         }
         document.getElementById('resp').innerText = event.data;
+    } else {
+        net_time = 0;
+        refresh_netstat();
     }
 }}
 
@@ -138,6 +142,22 @@ function clear_cards() {
     document.getElementById('your_cards').innerText = ''
 }
 
+function refresh_netstat() {
+    if (net_time >= 15) {
+        document.getElementById('NetStat').style.color = 'Red';
+        document.getElementById('NetStat').innerHTML = 'Обрыв соединения <a href="/">На главную страницу</a>';
+        socket.close();
+    } else if (net_time >= 5) {
+        document.getElementById('NetStat').style.color = 'Orange';
+        document.getElementById('NetStat').innerText = 'Проблемы со связью';
+    } else {
+        document.getElementById('NetStat').style.color = 'Green';
+        document.getElementById('NetStat').innerText = 'Соединение установлено';
+    }
+}
+
 heartbit = function() {
     send('"Ping"');
+    net_time += 1;
+    refresh_netstat();
 }
