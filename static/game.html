@@ -11,7 +11,8 @@
             <a href="/about" target="_blank">Об игре</a>
             <b id="NetStat" style="color: orange">Соединение не установлено</b>
         </p>
-        <p>
+
+        <div>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetCard'}))" id="GetCardBut">Взять карту</button>
             <button onclick="send(JSON.stringify({'MakeStep' : {'GiveComb': cards}}))" id="GiveCombBut">Выложить комбинацию</button>
             <button onclick="send(JSON.stringify({'MakeStep' : {'TransComb': cards}}))" id="TransCombBut">Перевести комбинацию</button>
@@ -19,42 +20,47 @@
             <br />
 
             <b>Выбранные карты <button onclick="clear_cards()">Очистить</button>: </b><br /><div class="resp"><span id="your_cards"></span></div>
-        </p>
-        
-        <p>
-            <b>Ваш ход:</b><br /> 
-            <div class="resp"><span id="your_turn">Нет</span></div>
-        </p>
-        
-        <p>
-            <b>Ваши карты:</b><br /> 
-            <div class="resp"><span id="cards"></span></div>
-        </p>
-        
-        <p>
-            <b>Состояние:</b><br /> 
-            <div class="resp"><span id="state"></span></div>
-        </p>
-        <div id="StateActDiv">
-            <p>
-                <b>Комбинация:</b><br /> 
-                <div class="resp"><span id="comb"></span></div>
-            </p>
-        
-            <p>
-                <b>Карты на доске:</b><br /> 
-                <div class="resp"><span id="board"></span></div>
-            </p>
         </div>
-        
-        <p><b>Карт в колоде:</b><span id="deck_size"></span></p>
-        
-        <p>
+        <div id="WaitDiv"><p>Ждём второго игрока.</p></div>
+        <div id="GameDiv" style="display: none">
+            <div>
+                <b>Ваш ход:</b><br /> 
+                <div class="resp"><span id="your_turn">Нет</span></div>
+            </div>
+
+            <div>
+                <b>Ваши карты:</b><br /> 
+                <div class="resp"><span id="cards"></span></div>
+            </div>
+            <p></p>
+
+            <div>
+                <b>Состояние:</b><br /> 
+                <div class="resp"><span id="state"></span></div>
+            </div>
+
+            <div id="StateActDiv">
+                <div>
+                    <b>Комбинация:</b><br /> 
+                    <div class="resp"><span id="comb"></span></div>
+                </div>
+                <p></p>
+
+                <div>
+                    <b>Карты на доске:</b><br /> 
+                    <div class="resp"><span id="board"></span></div>
+                </div>
+            </div>
+
+            <p><b>Карт в колоде:</b><span id="deck_size"></span></p>
+        </div>
+
+        <div>
             <b>Запрос на сервер: </b>
             <div class="resp"><code><span id="req"></span></code></div>
             <b>Ответ сервера:</b><br /> 
             <div class="resp"><code><span id="resp"></span></code></div>
-        </p>
+        </div>
     </body>
 </html>
 

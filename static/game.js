@@ -65,6 +65,8 @@ socket.onmessage = function(event) {{
     if (data != '"Pong"') {
         data = JSON.parse(data);
         if (data['YourCards']) {
+            document.getElementById('WaitDiv').style.display = 'None'
+            document.getElementById('GameDiv').style.display = ''
             document.getElementById('cards').innerHTML = print_cards(data['YourCards'][0]);
             document.getElementById('deck_size').innerText = JSON.stringify(data['YourCards'][1]);
             deck_size = data['YourCards'][1] + 0;
