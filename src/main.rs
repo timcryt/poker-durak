@@ -149,6 +149,7 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
 #[derive(Serialize)]
 enum JsonResponse {
     Pong,
+    ID(usize),
     YourCards(HashSet<Card>, usize),
     YourTurn(State, HashSet<Card>, usize),
     YouMadeStep(State, HashSet<Card>, usize),
@@ -169,7 +170,10 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
 
     game_pool.lock().unwrap().waiting_players.insert(pid);
+
+
     println!("Player {} registrated!", pid);
+    websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::ID(pid)).unwrap()).ok();
 
 
     if game_pool.lock().unwrap().waiting_players.len() >= 2 {
@@ -242,6 +246,11 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
         match message {
             websocket::Message::Text(txt) => {
+
+                if txt != "\"Ping\"" {
+                    println!("From player {} request {}", pid, txt);
+                }
+
                 let json_response = match serde_json::from_str(&txt) {
                     Ok(json_request) => match json_request {
                         JsonRequest::Ping => JsonResponse::Pong,
@@ -266,6 +275,12 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 };
                 
                 let mut websocket = websocket.lock().unwrap();
+
+                match &json_response {
+                    JsonResponse::Pong => (),
+                    _ => {println!("From server response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
+                }
+
                 websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
 
                 {
@@ -279,7 +294,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
             },
             _ => {
-                println!("received unknown message from a websocket");
+                println!("received unknown message from a websocket {}", pid);
             },
         }
     }
