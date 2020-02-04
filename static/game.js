@@ -61,6 +61,9 @@ function print_cards(cards) {
 }
 
 socket.onmessage = function(event) {{
+    net_time = 0;
+    refresh_netstat();
+    
     data = event.data;
     if (data != '"Pong"') {
         data = JSON.parse(data);
@@ -93,9 +96,6 @@ socket.onmessage = function(event) {{
             location.replace('/game_loser');
         }
         document.getElementById('resp').innerText = event.data;
-    } else {
-        net_time = 0;
-        refresh_netstat();
     }
 }}
 
