@@ -192,6 +192,14 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 println!("Player {} exited!", pid);
                 return;
             } else {
+                if let websocket::Message::Text(txt) = message.unwrap() {
+                    if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
+                        match req {
+                            JsonRequest::Ping => {websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap()).ok();},
+                            _ => ()
+                        }
+                    }
+                }
                 sleep(Duration::from_millis(1000));
                 if game_pool.lock().unwrap().players.contains_key(&pid) {
                     break
