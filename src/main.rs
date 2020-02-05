@@ -14,6 +14,11 @@ use serde::{Serialize, Deserialize};
 #[macro_use]
 extern crate rouille;
 
+#[macro_use]
+extern crate log;
+
+extern crate env_logger;
+
 use rouille::websocket;
 use rouille::Response;
 
@@ -40,7 +45,7 @@ fn main() {
         None => "127.0.0.1:8000".to_string()
     };
 
-    println!("Now listening on {}", addr);
+    env_logger::init();
     
     let mut game_script = String::new();
     {
@@ -63,30 +68,37 @@ fn main() {
     rouille::start_server(&addr, move |request| {
         router!(request,
             (GET) (/) => {
+                info!("GET /");
                 Response::from_file("text/html", File::open("static/index.html").unwrap())
             },
 
             (GET) (/game) => {
+                info!("GET /game");
                 Response::from_file("text/html", File::open("static/game.html").unwrap())
             },
 
             (GET) (/game_script) => {
+                info!("GET /game_script");
                 Response::from_data("text/javascript", game_script.clone())
             },
 
             (GET) (/about) => {
+                info!("GET /about");
                 Response::from_file("text/html", File::open("static/about.html").unwrap())
             },
 
             (GET) (/game_winner) => {
+                info!("GET /game_winner");
                 Response::from_file("text/html", File::open("static/winner.html").unwrap())
             },
 
             (GET) (/game_loser) => {
+                info!("GET /game_loser");
                 Response::from_file("text/html", File::open("static/loser.html").unwrap())
             },
 
             (GET) (/ws) => {
+                info!("GET /ws");
                 let (response, websocket) = try_or_400!(websocket::start(&request, Some("echo")));
                 let game_pool = Arc::clone(&game_pool);
 
@@ -99,6 +111,7 @@ fn main() {
             },
 
             (GET) (/stat) => {
+                info!("GET /stat");
                 let game_pool = game_pool.lock().unwrap();
                 let all_games = game_pool.counter;
                 let now_games = game_pool.games.len();
@@ -118,7 +131,10 @@ fn main() {
 "#, all_games, now_games))
             },
 
-            _ => rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
+            _ => {
+                warn!("UNKNOWN");
+                rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
+            }
         )
     });
 }
@@ -187,7 +203,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     game_pool.lock().unwrap().waiting_players.insert(pid);
 
 
-    println!("Player {} registrated!", pid);
+    info!("{} registrated!", pid);
     websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::ID(pid)).unwrap()).ok();
 
 
@@ -206,9 +222,9 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         loop {
             let message = websocket_next(&websocket);
             if message == None {
-                println!("Player {} is exiting!", pid);
+                info!("{} is exiting!", pid);
                 game_pool.lock().unwrap().waiting_players.remove(&pid);
-                println!("Player {} exited!", pid);
+                info!("{} exited!", pid);
                 return;
             } else {
                 if let websocket::Message::Text(txt) = message.unwrap() {
@@ -229,7 +245,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
     let gid = game_pool.lock().unwrap().players[&pid];
 
-    println!("Player {} is playing!", pid);
+    info!("{} is playing!", pid);
     {
         let mut game_pool = game_pool.lock().unwrap();
         let game_id = game_pool.players[&pid];
@@ -269,7 +285,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             websocket::Message::Text(txt) => {
 
                 if txt != "\"Ping\"" {
-                    println!("From player {} request {}", pid, txt);
+                    info!("From {} request {}", pid, txt);
                 }
 
                 let json_response = match serde_json::from_str(&txt) {
@@ -299,7 +315,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
                 match &json_response {
                     JsonResponse::Pong => (),
-                    _ => {println!("From server response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
+                    _ => {info!("Response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
                 }
 
                 websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
@@ -315,7 +331,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
             },
             _ => {
-                println!("received unknown message from a websocket {}", pid);
+                warn!("Unknown message from a websocket {}", pid);
             },
         }
     }
@@ -332,7 +348,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
-    println!("Player {} is exiting!", pid);
+    info!("{} is exiting!", pid);
     {
         let mut game_pool = game_pool.lock().unwrap();
         if game_pool.players.contains_key(&pid) {
@@ -345,6 +361,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             game_pool.games.remove(&gid);
         }
     }
-    println!("Player {} exited!", pid);
+    info!("{} exited!", pid);
 
 }
