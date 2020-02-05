@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::env::args;
+use std::fs::File;
+use std::io::prelude::*;
 use std::sync::{Mutex, Arc};
 use std::time::{Duration, SystemTime};
 use std::thread;
@@ -39,6 +41,17 @@ fn main() {
     };
 
     println!("Now listening on {}", addr);
+    
+    let mut game_script = String::new();
+    {
+        let mut script_file = File::open("static/game.js").unwrap();
+        
+        script_file.read_to_string(&mut game_script).unwrap();
+    }
+
+    game_script = game_script.replace("{host}", &addr);
+
+
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
         players: HashMap::new(),
@@ -50,27 +63,27 @@ fn main() {
     rouille::start_server(&addr, move |request| {
         router!(request,
             (GET) (/) => {
-                Response::from_file("text/html", std::fs::File::open("static/index.html").unwrap())
+                Response::from_file("text/html", File::open("static/index.html").unwrap())
             },
 
             (GET) (/game) => {
-                Response::from_file("text/html", std::fs::File::open("static/game.html").unwrap())
+                Response::from_file("text/html", File::open("static/game.html").unwrap())
             },
 
             (GET) (/game_script) => {
-                Response::from_file("text/javascript", std::fs::File::open("static/game.js").unwrap())
+                Response::from_data("text/javascript", game_script.clone())
             },
 
             (GET) (/about) => {
-                Response::from_file("text/html", std::fs::File::open("static/about.html").unwrap())
+                Response::from_file("text/html", File::open("static/about.html").unwrap())
             },
 
             (GET) (/game_winner) => {
-                Response::from_file("text/html", std::fs::File::open("static/winner.html").unwrap())
+                Response::from_file("text/html", File::open("static/winner.html").unwrap())
             },
 
             (GET) (/game_loser) => {
-                Response::from_file("text/html", std::fs::File::open("static/loser.html").unwrap())
+                Response::from_file("text/html", File::open("static/loser.html").unwrap())
             },
 
             (GET) (/ws) => {
@@ -105,7 +118,7 @@ fn main() {
 "#, all_games, now_games))
             },
 
-            _ => rouille::Response::from_file("text/html", std::fs::File::open("static/404.html").unwrap()).with_status_code(404)
+            _ => rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
         )
     });
 }

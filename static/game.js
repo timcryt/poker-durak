@@ -1,4 +1,4 @@
-var socket = new WebSocket('ws://127.0.0.1:8000/ws', 'echo');
+var socket = new WebSocket('ws://{host}/ws', 'echo');
 var cards = [];
 var is_your_turn = false;
 var deck_size = 0;
