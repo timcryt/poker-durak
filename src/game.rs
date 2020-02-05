@@ -247,6 +247,13 @@ impl Game {
         }
     }
 
+    pub fn players_decks(&self) -> Vec<usize> {
+        (1..self.players.len())
+            .map(|i| 
+                self.players[(self.stepping_player + i) % self.players.len()].cards.len())
+            .collect()
+    }
+
     pub fn kick_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
 

@@ -86,6 +86,7 @@ socket.onmessage = function(event) {{
             is_your_turn = true;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
+            document.getElementById('opponent_deck').innerText = JSON.stringify(data[3]);
             deck_size = data[2] + 0;
             refresh_state(data[0]);    
         } else if (data['YouMadeStep']) {

@@ -164,7 +164,7 @@ enum JsonResponse {
     Pong,
     ID(usize),
     YourCards(HashSet<Card>, usize, u64),
-    YourTurn(State, HashSet<Card>, usize),
+    YourTurn(State, HashSet<Card>, usize, usize),
     YouMadeStep(State, HashSet<Card>, usize),
     StepError(StepError),
     JsonError,
@@ -256,6 +256,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                     game.get_state_cards(),
                     game.get_player_cards(pid),
                     game.get_deck_size(),
+                    game.players_decks()[0],
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
             } else if game.get_stepping_player() == pid && turn_time.elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
