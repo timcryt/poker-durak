@@ -150,7 +150,7 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
 enum JsonResponse {
     Pong,
     ID(usize),
-    YourCards(HashSet<Card>, usize),
+    YourCards(HashSet<Card>, usize, u64),
     YourTurn(State, HashSet<Card>, usize),
     YouMadeStep(State, HashSet<Card>, usize),
     StepError(StepError),
@@ -167,6 +167,8 @@ enum JsonRequest {
 
 fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>) {
     let pid = thread_rng().gen();
+    
+    const TIMEOUT_SECS: u64 = 300;
 
 
     game_pool.lock().unwrap().waiting_players.insert(pid);
@@ -221,12 +223,14 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let game = game_pool.games.get_mut(&game_id).unwrap();
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
             game.get_player_cards(pid),
-            game.get_deck_size()
+            game.get_deck_size(),
+            TIMEOUT_SECS,
         )).unwrap()).ok();
 
     }
 
     let mut your_turn_new = true;
+    let mut turn_time = SystemTime::now();
 
     while let Some(message) = websocket_next(&websocket) {
         {
@@ -234,12 +238,15 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             let game_id = game_pool.players[&pid];
             let game = game_pool.games.get_mut(&game_id).unwrap();
             if game.get_stepping_player() == pid && your_turn_new {
+                turn_time = SystemTime::now();
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
                     game.get_state_cards(),
                     game.get_player_cards(pid),
                     game.get_deck_size(),
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
+            } else if game.get_stepping_player() == pid && turn_time.elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
+                break;
             }
     
         }
