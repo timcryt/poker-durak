@@ -214,6 +214,9 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let counter = game_pool.counter;
         game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
         game_pool.games.insert(counter, Game::new(players.clone()).unwrap());
+
+        info!("GAME game {} created", counter);
+
         for player in players {
             game_pool.players.insert(player, counter);
         }
@@ -221,6 +224,10 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     } else {
         loop {
             let message = websocket_next(&websocket);
+            if game_pool.lock().unwrap().players.contains_key(&pid) {
+                break
+            }
+            
             if message == None {
                 info!("GAME {} is exiting!", pid);
                 game_pool.lock().unwrap().waiting_players.remove(&pid);
@@ -235,15 +242,15 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                         }
                     }
                 }
-                sleep(Duration::from_millis(1000));
-                if game_pool.lock().unwrap().players.contains_key(&pid) {
-                    break
-                }
+
             }
+
+            sleep(Duration::from_millis(1000));
         }
     }
 
     let gid = game_pool.lock().unwrap().players[&pid];
+
 
     info!("GAME {} is playing!", pid);
     {
@@ -359,6 +366,8 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         game_pool.rev_players.get_mut(&gid).unwrap().remove(&pid);
         if game_pool.rev_players[&gid].len() == 0 {
             game_pool.games.remove(&gid);
+            game_pool.rev_players.remove(&gid);
+            info!("GAME game {} deleted", gid);
         }
     }
     info!("GAME {} exited!", pid);
