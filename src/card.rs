@@ -1,6 +1,7 @@
-use serde::{Serialize, Deserialize};
 use serde::de::{Deserializer, Visitor};
 use serde::de;
+use serde::ser::Serializer;
+use serde::ser::SerializeTuple;
 use std::fmt;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
@@ -65,7 +66,7 @@ impl<'de> serde::de::Deserialize<'de> for CardRank {
 impl serde::ser::Serialize for CardRank {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::ser::Serializer,
+        S: Serializer,
     {
         match *self {
             CardRank::Two   => serializer.serialize_unit_variant("CardRank", 0 , "2"),
@@ -159,10 +160,68 @@ impl serde::ser::Serialize for CardSuit {
 
 pub const CARD_SUITS: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
 
-#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct Card {
     pub rank: CardRank,
     pub suit: CardSuit,
+}
+
+impl serde::ser::Serialize for Card {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_tuple(2)?;
+        seq.serialize_element(&self.rank)?;
+        seq.serialize_element(&self.suit)?;
+        seq.end()
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for Card {
+    fn deserialize<D>(deserializer: D) -> Result<Card, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct CardVisitor;
+
+        impl<'de> Visitor<'de> for CardVisitor {
+            type Value = Card;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("[rack, suit]")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Card, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let rank = match seq.next_element() {
+                    Ok(Some(rank)) => rank,
+                    _ => {return Err(serde::de::Error::missing_field("rank"));},
+                };
+
+                let suit = match seq.next_element() {
+                    Ok(Some(suit)) => suit,
+                    _ => {return Err(serde::de::Error::missing_field("suit"));}
+                };
+
+                Ok(Card {rank, suit})
+            }
+        }
+
+        deserializer.deserialize_seq(CardVisitor)
+    }
+}
+
+#[test]
+fn card_deserialize_test() {
+    assert_eq!(
+        serde_json::from_str::<Card>(
+            &serde_json::to_string(&Card {rank: CardRank::Queen, suit: CardSuit::Spades}).unwrap()
+        ).unwrap(),
+        Card {rank: CardRank::Queen, suit: CardSuit::Spades}
+    );
 }
 
 pub const NUMBER_OF_CARDS: usize = 52;

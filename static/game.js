@@ -5,6 +5,9 @@ var deck_size = 0;
 var net_time = 0;
 var timeout_max = 0;
 
+const SUIT = 1;
+const RANK = 0;
+
 function send(data) {{
     if (JSON.parse(data) != 'Ping') {
         document.getElementById('req').innerText = data;
@@ -49,13 +52,13 @@ function rank2num(a) {
 }
 
 function card_compare(a, b) {
-    return (suit2num(a['suit']) + rank2num(a['rank']) * 4) > (suit2num(b['suit']) + rank2num(b['rank']) * 4);
+    return (suit2num(a[SUIT]) + rank2num(a[RANK]) * 4) > (suit2num(b[SUIT]) + rank2num(b[RANK]) * 4);
 }
 
 function print_cards(cards) {
     s = '';
     cards.sort(card_compare).forEach(card => {
-        t = card['rank'] + ' ' + card['suit']
+        t = card[RANK] + ' ' + card[SUIT]
         s += `<button onclick="add_card('${t}')">+</button>` + t + '<br />'
     }); 
     return s;
@@ -139,9 +142,9 @@ function add_card(card) {
     suit = suit_rank[1];
     rank = suit_rank[0];
     if (!cards.find(function(item, _, _) {
-        return item['rank'] == rank && item['suit'] == suit;
+        return item[RANK] == rank && item[SUIT] == suit;
     })) {
-        cards.push({rank: rank, suit: suit});
+        cards.push([rank, suit]);
         document.getElementById('your_cards').innerText += card + '\n'
     }
 }

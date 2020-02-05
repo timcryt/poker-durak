@@ -23,6 +23,7 @@ enum CombRank {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Comb {
     pub cards: HashSet<Card>,
+    #[serde(skip_serializing)]
     rank: CombRank,
 }
 
