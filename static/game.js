@@ -25,26 +25,26 @@ function refresh_state(data) {
 }
 
 function suit2num(a) {
-    if (a == 'Spades') return 0;
-    if (a == 'Clubs') return 1;
-    if (a == 'Diamonds') return 2;
-    if (a == 'Hearts') return 3;
+    if (a == '♠') return 0;
+    if (a == '♣') return 1;
+    if (a == '♦') return 2;
+    if (a == '♥') return 3;
 }
 
 function rank2num(a) {
-    if (a == 'Two') return 0;
-    if (a == 'Three') return 1;
-    if (a == 'Four') return 2;
-    if (a == 'Five') return 3;
-    if (a == 'Six') return 4;
-    if (a == 'Seven') return 5;
-    if (a == 'Eight') return 6;
-    if (a == 'Nine') return 7;
-    if (a == 'Ten') return 8;
-    if (a == 'Jack') return 9;
-    if (a == 'Queen') return 10;
-    if (a == 'King') return 11;
-    if (a == 'Ace') return 12;       
+    if (a == '2') return 0;
+    if (a == '3') return 1;
+    if (a == '4') return 2;
+    if (a == '5') return 3;
+    if (a == '6') return 4;
+    if (a == '7') return 5;
+    if (a == '8') return 6;
+    if (a == '9') return 7;
+    if (a == '10') return 8;
+    if (a == 'J') return 9;
+    if (a == 'Q') return 10;
+    if (a == 'K') return 11;
+    if (a == 'A') return 12;       
 }
 
 function card_compare(a, b) {
