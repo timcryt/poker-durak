@@ -48,7 +48,7 @@ function rank2num(a) {
 }
 
 function card_compare(a, b) {
-    return (suit2num(a['suit']) * 13 + rank2num(a['rank'])) > (suit2num(b['suit']) * 13 + rank2num(b['rank']));
+    return (suit2num(a['suit']) + rank2num(a['rank']) * 4) > (suit2num(b['suit']) + rank2num(b['rank']) * 4);
 }
 
 function print_cards(cards) {
