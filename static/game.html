@@ -15,12 +15,9 @@
 
         <div>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetCard'}))" id="GetCardBut">Взять карту</button>
-            <button onclick="send(JSON.stringify({'MakeStep' : {'GiveComb': cards}}))" id="GiveCombBut">Выложить комбинацию</button>
-            <button onclick="send(JSON.stringify({'MakeStep' : {'TransComb': cards}}))" id="TransCombBut">Перевести комбинацию</button>
+            <button onclick="send(JSON.stringify({'MakeStep': {'GiveComb': parse_cards()}}))" id="GiveCombBut">Выложить комбинацию</button>
+            <button onclick="send(JSON.stringify({'MakeStep': {'TransComb': parse_cards()}}))" id="TransCombBut">Перевести комбинацию</button>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetComb'}))" id="GetCombBut">Взять комбинацию</button>
-            <br />
-
-            <b>Выбранные карты <button onclick="clear_cards()">Очистить</button>: </b><br /><div class="resp"><span id="your_cards"></span></div>
         </div>
         <div id="WaitDiv"><p>Ждём второго игрока.</p></div>
         <div id="GameDiv" style="display: none">

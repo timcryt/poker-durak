@@ -1,5 +1,5 @@
 var socket = new WebSocket('ws://{host}/ws', 'echo');
-var cards = [];
+var cards = new Set();
 var is_your_turn = false;
 var deck_size = 0;
 var net_time = 0;
@@ -14,6 +14,14 @@ function send(data) {{
     }
     socket.send(data);
 }}
+
+function parse_cards() {
+    cards_arr = []
+    cards.forEach(card =>
+        cards_arr.push(card.split(' '))
+    )
+    return cards_arr
+}
 
 function without(a, b) {
     return a.filter(card =>
@@ -86,7 +94,7 @@ function print_cards(cards) {
     cards.sort(card_compare).forEach(card => {
         t = card[RANK] + ' ' + card[SUIT]
         c = card_from(card)
-        s += `<button onclick="add_card('${t}')" style="font-size: 60px">${c}</button>`
+        s += `<button id="${t}" onclick="add_card('${t}')" style="font-size: 60px; color: black; background-color: white">${c}</button>`
     }); 
     return s;
 }
@@ -122,7 +130,7 @@ socket.onmessage = function(event) {{
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
             deck_size = data[2] + 0;
             refresh_state(data[0]);
-            clear_cards();
+            cards.clear();
         } else if (data == 'GameWinner') {
             location.replace('/game_winner');
         } else if (data == 'GameLoser') {
@@ -163,20 +171,15 @@ function set_state(state) {
 }
 
 function add_card(card) {
-    suit_rank = card.split(' ');
-    suit = suit_rank[1];
-    rank = suit_rank[0];
-    if (!cards.find(function(item, _, _) {
-        return item[RANK] == rank && item[SUIT] == suit;
-    })) {
-        cards.push([rank, suit]);
-        document.getElementById('your_cards').innerText += card + '\n'
+    if (!cards.has(card)) {
+        document.getElementById(card).style.backgroundColor = 'green';
+        document.getElementById(card).style.color = 'white';
+        cards.add(card);
+    } else {
+        document.getElementById(card).style.backgroundColor = 'white';
+        document.getElementById(card).style.color = 'black';
+        cards.delete(card);
     }
-}
-
-function clear_cards() {
-    cards = []
-    document.getElementById('your_cards').innerText = ''
 }
 
 function refresh_netstat() {
