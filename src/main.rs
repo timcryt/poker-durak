@@ -259,7 +259,7 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePo
 fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::Websocket>>, ws_end_success: bool, pid: usize) {
     let game_pool = Arc::clone(&game_pool);
     thread::spawn(move || {
-        const WS_CLOSED_WAIT: u64 = 15; 
+        const WS_CLOSED_WAIT: u64 = 5; 
 
         game_pool.lock().unwrap().on_delete.insert(pid);
 
@@ -317,7 +317,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
 
 fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
     
-    const TIMEOUT_SECS: u64 = 30;
+    const TIMEOUT_SECS: u64 = 300;
 
     let (game_pool, is_ret) = player_init(game_pool, pid);
     if is_ret {
