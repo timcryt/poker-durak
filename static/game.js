@@ -128,6 +128,7 @@ socket.onmessage = function(event) {{
             document.getElementById('opponent_deck').innerText = data[3];
             deck_size = data[2] + 0;
             refresh_state(data[0]);    
+            cards_clear();
         } else if (data['YouMadeStep']) {
             data = data['YouMadeStep'];
             document.getElementById('your_turn').innerText = 'Нет';
