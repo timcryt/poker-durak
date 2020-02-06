@@ -116,7 +116,7 @@ socket.onmessage = function(event) {{
             document.getElementById('WaitDiv').style.display = 'None'
             document.getElementById('GameDiv').style.display = '';
             document.getElementById('cards').innerHTML = print_cards(data['YourCards'][0]);
-            document.getElementById('deck_size').innerText = JSON.stringify(data['YourCards'][1]);
+            document.getElementById('deck_size').innerText = data['YourCards'][1];
             deck_size = data['YourCards'][1] + 0;
         } else if (data['YourTurn']) {
             data = data['YourTurn'];
@@ -124,8 +124,8 @@ socket.onmessage = function(event) {{
             timeout = data[4];
             is_your_turn = true;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
-            document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
-            document.getElementById('opponent_deck').innerText = JSON.stringify(data[3]);
+            document.getElementById('deck_size').innerText = data[2];
+            document.getElementById('opponent_deck').innerText = data[3];
             deck_size = data[2] + 0;
             refresh_state(data[0]);    
         } else if (data['YouMadeStep']) {
@@ -133,8 +133,8 @@ socket.onmessage = function(event) {{
             document.getElementById('your_turn').innerText = 'Нет';
             is_your_turn = false;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
-            document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
-            document.getElementById('opponent_deck').innerText = JSON.stringify(data[3]);
+            document.getElementById('deck_size').innerText = data[2];
+            document.getElementById('opponent_deck').innerText = data[3];
             deck_size = data[2] + 0;
             refresh_state(data[0]);
         } else if (data == 'GameWinner') {
@@ -142,7 +142,7 @@ socket.onmessage = function(event) {{
         } else if (data == 'GameLoser') {
             location.replace('/game_loser');
         } else if (data['ID']) {
-            document.getElementById('GamePID').innerText = JSON.stringify(data['ID']);
+            document.getElementById('GamePID').innerText = data['ID'];
         }
     }
 }}
