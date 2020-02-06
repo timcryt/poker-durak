@@ -183,11 +183,11 @@ function add_card(card) {
 }
 
 function refresh_netstat() {
-    if (net_time >= 15) {
+    if (net_time >= {HEARTBIT_INTERVAL}) {
         document.getElementById('NetStat').style.color = 'Red';
         document.getElementById('NetStat').innerHTML = 'Обрыв соединения <a href="/">На главную страницу</a>';
         socket.close();
-    } else if (net_time >= 5) {
+    } else if (net_time >= ({HEARTBIT_INTERVAL} / 2)) {
         document.getElementById('NetStat').style.color = 'Orange';
         document.getElementById('NetStat').innerText = 'Проблемы со связью';
     } else {

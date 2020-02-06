@@ -30,6 +30,8 @@ mod card;
 use crate::game::*;
 use crate::card::*;
 
+const HEARTBIT_INTERVAL: u64 = 15;
+
 struct GamePool {
     games: HashMap<usize, Game>,
     players: HashMap<usize, (usize, Option<std::time::SystemTime>)>,
@@ -63,16 +65,6 @@ fn main() {
     };
 
     env_logger::init();
-    
-    let mut game_script = String::new();
-    {
-        let mut script_file = File::open("static/game.js").unwrap();
-        
-        script_file.read_to_string(&mut game_script).unwrap();
-    }
-
-    game_script = game_script.replace("{host}", &addr);
-
 
     let game_pool = Arc::new(Mutex::new(GamePool{
         games: HashMap::new(),
@@ -82,6 +74,8 @@ fn main() {
         on_delete: HashSet::new(),
         counter: 0,
     }));
+
+    let addr_clone = addr.clone();
 
     rouille::start_server(&addr, move |request| {
         router!(request,
@@ -109,7 +103,17 @@ fn main() {
 
             (GET) (/game_script) => {
                 info!("GET /game_script");
-                Response::from_data("text/javascript", game_script.clone())
+                let mut game_script = String::new();
+                {
+                    let mut script_file = File::open("static/game.js").unwrap();
+                    
+                    script_file.read_to_string(&mut game_script).unwrap();
+                }
+            
+                Response::from_data("text/javascript", game_script
+                    .replace("{host}", &addr_clone)
+                    .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL.to_string())
+                )
             },
 
             (GET) (/about) => {
@@ -183,7 +187,6 @@ fn main() {
 
 
 fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websocket::Message> {
-    const HEARTBIT_INTERVAL: u64 = 15;
 
     let gotten = Arc::new(Mutex::new(None));
     let gotten_clone = Arc::clone(&gotten);
