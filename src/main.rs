@@ -240,12 +240,13 @@ enum JsonRequest {
 }
 
 fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePool>>, bool) {
+    const PLAYING_ACTIVITY_WAIT: u64 = 200;
+    sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT));
+
     if game_pool.lock().unwrap().on_delete.contains(&pid) {
         info!("PLAYER {} is restroring", pid);
         game_pool.lock().unwrap().on_delete.remove(&pid);
     } else if game_pool.lock().unwrap().players.contains_key(&pid) {
-        const PLAYING_ACTIVITY_WAIT: u64 = 200;
-        sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT));
         if game_pool.lock().unwrap().on_delete.contains(&pid) {
             info!("PLAYER {} is restroring", pid);
             game_pool.lock().unwrap().on_delete.remove(&pid);                
@@ -265,11 +266,10 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
         const WS_CLOSED_WAIT: u64 = 5; 
 
         game_pool.lock().unwrap().on_delete.insert(pid);
+
         if ws_end_success == None {
             game_pool.lock().unwrap().waiting_players.remove(&pid);
-        }
-
-        if ws_end_success != Some(true) {
+        } else if ws_end_success == Some(false) {
             info!("PLAYER {} disconnected", pid);
             sleep(Duration::from_secs(WS_CLOSED_WAIT));
         }
@@ -305,8 +305,6 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
             game_pool.on_delete.remove(&pid);
             
             info!("PLAYER {} exited!", pid);
-        } else if ws_end_success == None {
-            game_pool.waiting_players.insert(pid);
         }
     });
 }
