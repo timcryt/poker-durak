@@ -17,7 +17,16 @@ function parse_cards() {
     cards.forEach(card =>
         cards_arr.push(card.split(' '))
     )
+    cards_clear()
     return cards_arr
+}
+
+function cards_clear() {
+    cards.forEach(card => {
+        document.getElementById(card).style.backgroundColor = 'white';
+        document.getElementById(card).style.color = 'black';
+    })
+    cards.clear()
 }
 
 function without(a, b) {
@@ -128,7 +137,6 @@ socket.onmessage = function(event) {{
             document.getElementById('opponent_deck').innerText = JSON.stringify(data[3]);
             deck_size = data[2] + 0;
             refresh_state(data[0]);
-            cards.clear();
         } else if (data == 'GameWinner') {
             location.replace('/game_winner');
         } else if (data == 'GameLoser') {
