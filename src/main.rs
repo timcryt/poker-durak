@@ -256,45 +256,53 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePo
     (game_pool, false)
 }
 
-fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::Websocket>>, ws_end_success: bool, pid: usize) {
+fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::Websocket>>, ws_end_success: Option<bool>, pid: usize) {
     let game_pool = Arc::clone(&game_pool);
     thread::spawn(move || {
         const WS_CLOSED_WAIT: u64 = 5; 
 
         game_pool.lock().unwrap().on_delete.insert(pid);
+        if ws_end_success == None {
+            game_pool.lock().unwrap().waiting_players.remove(&pid);
+        }
 
-        if !ws_end_success {
+        if ws_end_success != Some(true) {
+            info!("PLAYER {} disconnected", pid);
             sleep(Duration::from_secs(WS_CLOSED_WAIT));
         }
         
         let mut game_pool = game_pool.lock().unwrap();
 
         if game_pool.on_delete.contains(&pid) {
-            info!("PLAYER {} is exiting!", pid);
-            game_pool.on_delete.remove(&pid);
+            if ws_end_success != None {
+                info!("PLAYER {} is exiting!", pid);
+                game_pool.on_delete.remove(&pid);
 
-            let gid = game_pool.players[&pid].0;
-            let game = game_pool.games.get_mut(&gid).unwrap();
-            game.kick_player(pid);
-            if game.game_winner() == Some(pid) {
-                if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
-            } else {
-                if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
-            }
+                let gid = game_pool.players[&pid].0;
+                let game = game_pool.games.get_mut(&gid).unwrap();
+                game.kick_player(pid);
+                if game.game_winner() == Some(pid) {
+                    if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
+                } else {
+                    if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
+                }
 
-            if game_pool.players.contains_key(&pid) {
-                let player_game = game_pool.players[&pid].0;
-                game_pool.games.get_mut(&player_game).unwrap().kick_player(pid);
-                game_pool.players.remove(&pid);
-            }
+                if game_pool.players.contains_key(&pid) {
+                    let player_game = game_pool.players[&pid].0;
+                    game_pool.games.get_mut(&player_game).unwrap().kick_player(pid);
+                    game_pool.players.remove(&pid);
+                }
         
-            game_pool.rev_players.get_mut(&gid).unwrap().remove(&pid);
-            if game_pool.rev_players[&gid].len() == 0 {
-                game_pool.games.remove(&gid);
-                game_pool.rev_players.remove(&gid);
-                info!("GAME {} deleted", gid);
+                game_pool.rev_players.get_mut(&gid).unwrap().remove(&pid);
+                if game_pool.rev_players[&gid].len() == 0 {
+                    game_pool.games.remove(&gid);
+                    game_pool.rev_players.remove(&gid);
+                    info!("GAME {} deleted", gid);
+                }
             }
             info!("PLAYER {} exited!", pid);
+        } else if ws_end_success == None {
+            game_pool.waiting_players.insert(pid);
         }
     });
 }
@@ -338,9 +346,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             }
             
             if message == None {
-                info!("PLAYER {} is exiting!", pid);
-                game_pool.lock().unwrap().waiting_players.remove(&pid);
-                info!("PLAYER {} exited!", pid);
+                game_exit(game_pool, websocket, None, pid);
                 return;
             } else {
                 if let websocket::Message::Text(txt) = message.unwrap() {
@@ -353,7 +359,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 }
 
             }
-            sleep(Duration::from_millis(1000));
         }
     }
 
@@ -456,5 +461,5 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             },
         }
     }
-    game_exit(game_pool, websocket, ws_end_success, pid);
+    game_exit(game_pool, websocket, Some(ws_end_success), pid);
 }
