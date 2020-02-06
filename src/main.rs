@@ -279,7 +279,6 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
         if game_pool.on_delete.contains(&pid) {
             if ws_end_success != None {
                 info!("PLAYER {} is exiting!", pid);
-                game_pool.on_delete.remove(&pid);
 
                 let gid = game_pool.players[&pid].0;
                 let game = game_pool.games.get_mut(&gid).unwrap();
@@ -303,6 +302,8 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
                     info!("GAME {} deleted", gid);
                 }
             }
+            game_pool.on_delete.remove(&pid);
+            
             info!("PLAYER {} exited!", pid);
         } else if ws_end_success == None {
             game_pool.waiting_players.insert(pid);
