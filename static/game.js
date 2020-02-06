@@ -9,9 +9,6 @@ const SUIT = 1;
 const RANK = 0;
 
 function send(data) {{
-    if (JSON.parse(data) != 'Ping') {
-        document.getElementById('req').innerText = data;
-    }
     socket.send(data);
 }}
 
@@ -138,7 +135,6 @@ socket.onmessage = function(event) {{
         } else if (data['ID']) {
             document.getElementById('GamePID').innerText = JSON.stringify(data['ID']);
         }
-        document.getElementById('resp').innerText = event.data;
     }
 }}
 

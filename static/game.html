@@ -6,7 +6,7 @@
         <style>.resp {margin-left: 48pt};</style>
     </head>
     <body onload="setInterval(heartbit, 1000);set_state(false);">
-        <p>Веб интерфейс игры "покерный дурак", версия 0.3.0</p>
+        <p>Веб интерфейс игры "покерный дурак", версия 1.0.0</p>
         <p>
             <a href="/about" target="_blank">Об игре</a>
             <b id="NetStat" style="color: orange">Соединение не установлено</b><br />
@@ -54,13 +54,6 @@
                 <b>Карт в колоде: </b><span id="deck_size"></span><br />
                 <b>Карт у противника: </b><span id="opponent_deck">?</span>
             </p>
-        </div>
-
-        <div>
-            <b>Запрос на сервер: </b>
-            <div class="resp"><code><span id="req"></span></code></div>
-            <b>Ответ сервера:</b><br /> 
-            <div class="resp"><code><span id="resp"></span></code></div>
         </div>
     </body>
 </html>
