@@ -20,6 +20,7 @@ extern crate log;
 extern crate env_logger;
 
 use rouille::websocket;
+use rouille::input;
 use rouille::Response;
 
 mod game;
@@ -35,6 +36,21 @@ struct GamePool {
     rev_players: HashMap<usize, HashSet<usize>>,
     waiting_players: HashSet<usize>,
     counter: usize,
+}
+
+fn get_sid(request: &rouille::Request) -> Option<usize> {
+    if let Some((_, val)) = input::cookies(&request).find(|&(n, _)| n == "sid") {
+        match val.trim().parse::<usize>() {
+            Ok(sid) => {
+                Some(sid)
+            }
+            _ => {
+                None
+            }
+        }
+    } else {
+        None
+    } 
 }
 
 fn main() {
@@ -74,7 +90,19 @@ fn main() {
 
             (GET) (/game) => {
                 info!("GET /game");
-                Response::from_file("text/html", File::open("static/game.html").unwrap())
+                let mut resp = Response::from_file("text/html", File::open("static/game.html").unwrap());
+                match get_sid(&request) {
+                    Some(sid) => {
+                        info!("SID {}", sid);
+                    }
+                    None => {
+                        let sid = thread_rng().gen::<usize>();
+                        info!("SID NEW {}", sid);
+                        resp = resp.with_additional_header("Set-Cookie", format!("sid={}; HttpOnly", sid));
+                    }
+                }
+
+                resp
             },
 
             (GET) (/game_script) => {
@@ -99,6 +127,19 @@ fn main() {
 
             (GET) (/ws) => {
                 info!("GET /ws");
+                let _sid = match get_sid(request) {
+                    Some(sid) => {
+                        info!("GAME SID {}", sid);
+
+                        sid
+                    }
+                    None => {
+                        let sid = thread_rng().gen::<usize>();
+                        info!("GAME SID {} NEW", sid);
+                        sid
+                    }
+                };
+                
                 let (response, websocket) = try_or_400!(websocket::start(&request, Some("echo")));
                 let game_pool = Arc::clone(&game_pool);
 
@@ -138,7 +179,6 @@ fn main() {
         )
     });
 }
-
 
 
 fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websocket::Message> {
