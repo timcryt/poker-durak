@@ -30,7 +30,16 @@ fn comb_test_full_house() {
         Card {rank: CardRank::Ace, suit: CardSuit::Diamonds},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Diamonds}
-        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse((CardRank::Ace, CardRank::King)));   
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse(((CardRank::Ace, CardRank::King), 3)));  
+    
+
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Ace, suit: CardSuit::Spades},
+        Card {rank: CardRank::Ace, suit: CardSuit::Clubs},
+        Card {rank: CardRank::King, suit: CardSuit::Spades},
+        Card {rank: CardRank::King, suit: CardSuit::Hearts},
+        Card {rank: CardRank::King, suit: CardSuit::Diamonds}
+    ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse(((CardRank::Ace, CardRank::King), 2))); 
 }
 
 #[test]

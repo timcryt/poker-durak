@@ -15,7 +15,7 @@ enum CombRank {
     Set(CardRank),
     Straight(CardRank),
     Flush(CardRank),
-    FullHouse((CardRank, CardRank)),
+    FullHouse(((CardRank, CardRank), usize)),
     FourOfAKind(CardRank),
     StraightFlush(CardRank),
 }
@@ -111,9 +111,9 @@ impl Comb {
         }
     }
 
-    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<(CardRank, CardRank)> {
+    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<((CardRank, CardRank), usize)> {
         if cards.len() == x + y {
-            let mut m: Option<(CardRank, CardRank)> = None;
+            let mut m = None;
             for i in CARD_RANKS.iter() {
                 for j in CARD_RANKS.iter() {
                     if i < j {
@@ -128,10 +128,10 @@ impl Comb {
                                 let t = (*j, *i);
                                 m = match m {
                                     None =>
-                                        Some(t),
+                                        Some((t, cj)),
                                     Some(x) =>
-                                        if x < t {
-                                            Some(t)
+                                        if x.0 < t {
+                                            Some((t, cj))
                                         } else {
                                             Some(x)
                                         }
@@ -182,7 +182,7 @@ impl Comb {
     }
 
 
-    fn is_full_house(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
+    fn is_full_house(cards: &HashSet<Card>) -> Option<((CardRank, CardRank), usize)> {
         Comb::is_xy_of_a_kind(cards, 3, 2)
     }
 
@@ -191,7 +191,7 @@ impl Comb {
     }
 
     fn is_two_pairs(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
-        Comb::is_xy_of_a_kind(cards, 2, 2)
+        Comb::is_xy_of_a_kind(cards, 2, 2).map(|x| x.0)
     }
 
     fn is_pair(cards: &HashSet<Card>) -> Option<CardRank> {
