@@ -174,7 +174,7 @@ fn main() {
             },
 
             _ => {
-                warn!("UNKNOWN");
+                warn!("{} {} 404", request.method(), request.url());
                 rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
             }
         )
@@ -238,20 +238,20 @@ enum JsonRequest {
 
 fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePool>>, bool) {
     if game_pool.lock().unwrap().on_delete.contains(&pid) {
-        info!("GAME {} is restroring", pid);
+        info!("PLAYER {} is restroring", pid);
         game_pool.lock().unwrap().on_delete.remove(&pid);
     } else if game_pool.lock().unwrap().players.contains_key(&pid) {
         const PLAYING_ACTIVITY_WAIT: u64 = 200;
         sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT));
         if game_pool.lock().unwrap().on_delete.contains(&pid) {
-            info!("GAME {} is restroring", pid);
+            info!("PLAYER {} is restroring", pid);
             game_pool.lock().unwrap().on_delete.remove(&pid);                
         } else {
             return (game_pool, true);
         }
     } else {
         game_pool.lock().unwrap().waiting_players.insert(pid);
-        info!("GAME {} registrated!", pid);
+        info!("PLAYER {} registrated!", pid);
     }
     (game_pool, false)
 }
@@ -270,7 +270,7 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
         let mut game_pool = game_pool.lock().unwrap();
 
         if game_pool.on_delete.contains(&pid) {
-            info!("GAME {} is exiting!", pid);
+            info!("PLAYER {} is exiting!", pid);
             game_pool.on_delete.remove(&pid);
 
             let gid = game_pool.players[&pid].0;
@@ -292,9 +292,9 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
             if game_pool.rev_players[&gid].len() == 0 {
                 game_pool.games.remove(&gid);
                 game_pool.rev_players.remove(&gid);
-                info!("GAME game {} deleted", gid);
+                info!("GAME {} deleted", gid);
             }
-            info!("GAME {} exited!", pid);
+            info!("PLAYER {} exited!", pid);
         }
     });
 }
@@ -307,7 +307,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
     game_pool.games.insert(counter, Game::new(players.clone()).unwrap());
 
-    info!("GAME game {} created", counter);
+    info!("GAME {} created", counter);
 
     for player in players {
         game_pool.players.insert(player, (counter, None));
@@ -322,7 +322,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     let (game_pool, is_ret) = player_init(game_pool, pid);
     if is_ret {
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YouArePlaying).unwrap()).ok();
-        info!("GAME {} is playing from another socket", pid);
+        info!("PLAYER {} is playing from another socket", pid);
         return;
     }
 
@@ -338,9 +338,9 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             }
             
             if message == None {
-                info!("GAME {} is exiting!", pid);
+                info!("PLAYER {} is exiting!", pid);
                 game_pool.lock().unwrap().waiting_players.remove(&pid);
-                info!("GAME {} exited!", pid);
+                info!("PLAYER {} exited!", pid);
                 return;
             } else {
                 if let websocket::Message::Text(txt) = message.unwrap() {
@@ -357,7 +357,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
-    info!("GAME {} is playing!", pid);
+    info!("PLAYER {} is playing!", pid);
     {
         let mut game_pool = game_pool.lock().unwrap();
         let game_id = game_pool.players[&pid].0;
@@ -403,7 +403,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         match message {
             websocket::Message::Text(txt) => {
                 if txt != "\"Ping\"" {
-                    info!("GAME From {} request {}", pid, txt);
+                    info!("PLAYER From {} request {}", pid, txt);
                 }
 
                 let json_response = match serde_json::from_str(&txt) {
@@ -435,7 +435,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
                 match &json_response {
                     JsonResponse::Pong => (),
-                    _ => {info!("GAME Response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
+                    _ => {info!("PLAYER Response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
                 }
 
                 websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
@@ -452,7 +452,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
             },
             _ => {
-                warn!("GAME Unknown message from a websocket {}", pid);
+                warn!("PLAYER Unknown message from a websocket {}", pid);
             },
         }
     }
