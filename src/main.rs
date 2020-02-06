@@ -221,8 +221,8 @@ enum JsonResponse {
     Pong,
     ID(usize),
     YouArePlaying,
-    YourCards(HashSet<Card>, usize, u64),
-    YourTurn(State, HashSet<Card>, usize, usize),
+    YourCards(HashSet<Card>, usize),
+    YourTurn(State, HashSet<Card>, usize, usize, u64),
     YouMadeStep(State, HashSet<Card>, usize),
     StepError(StepError),
     JsonError,
@@ -365,7 +365,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
             game.get_player_cards(pid),
             game.get_deck_size(),
-            TIMEOUT_SECS,
         )).unwrap()).ok();
 
     }
@@ -381,6 +380,8 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 if game_pool.players.get_mut(&pid).unwrap().1.is_none() {
                     game_pool.players.get_mut(&pid).unwrap().1 = Some(SystemTime::now());
                 }
+                let time_elapsed = game_pool.players[&pid].1.unwrap().elapsed().unwrap().as_secs();
+
                 let game = game_pool.games.get(&game_id).unwrap();
 
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
@@ -388,6 +389,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                     game.get_player_cards(pid),
                     game.get_deck_size(),
                     game.players_decks()[0],
+                    TIMEOUT_SECS - time_elapsed
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
             } else if game_pool.games[&game_id].get_stepping_player() == pid && 

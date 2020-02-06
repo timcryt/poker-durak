@@ -3,7 +3,7 @@ var cards = [];
 var is_your_turn = false;
 var deck_size = 0;
 var net_time = 0;
-var timeout_max = 0;
+var timeout = 0;
 
 const SUIT = 1;
 const RANK = 0;
@@ -76,13 +76,11 @@ socket.onmessage = function(event) {{
             document.getElementById('GameDiv').style.display = '';
             document.getElementById('cards').innerHTML = print_cards(data['YourCards'][0]);
             document.getElementById('deck_size').innerText = JSON.stringify(data['YourCards'][1]);
-            timeout_max = data['YourCards'][2]
             deck_size = data['YourCards'][1] + 0;
         } else if (data['YourTurn']) {
             data = data['YourTurn'];
             document.getElementById('your_turn').innerText = 'Да';
-            document.getElementById('TimeOut').style.display = '';
-            timeout = timeout_max;
+            timeout = data[4];
             is_your_turn = true;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
@@ -92,7 +90,6 @@ socket.onmessage = function(event) {{
         } else if (data['YouMadeStep']) {
             data = data['YouMadeStep'];
             document.getElementById('your_turn').innerText = 'Нет';
-            document.getElementById('TimeOut').style.display = 'None';
             is_your_turn = false;
             document.getElementById('cards').innerHTML = print_cards(data[1]);
             document.getElementById('deck_size').innerText = JSON.stringify(data[2]);
@@ -170,7 +167,12 @@ function refresh_netstat() {
 }
 
 function refresh_timeout() {
-    document.getElementById('TimeOut').innerText = timeout;
+    if (is_your_turn) {
+        document.getElementById('TimeOut').style.display = '';
+        document.getElementById('TimeOut').innerText = timeout;
+    } else {
+        document.getElementById('TimeOut').style.display = 'none';
+    }
 }
 
 heartbit = function() {
