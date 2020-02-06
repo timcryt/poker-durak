@@ -226,7 +226,7 @@ enum JsonResponse {
     YouArePlaying,
     YourCards(HashSet<Card>, usize),
     YourTurn(State, HashSet<Card>, usize, usize, u64),
-    YouMadeStep(State, HashSet<Card>, usize),
+    YouMadeStep(State, HashSet<Card>, usize, usize),
     StepError(StepError),
     JsonError,
     GameWinner,
@@ -429,7 +429,12 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                                         ws_end_success = true;
                                         break;
                                     } else {
-                                        JsonResponse::YouMadeStep(game.get_state_cards(), game.get_player_cards(pid), game.get_deck_size())
+                                        JsonResponse::YouMadeStep(
+                                            game.get_state_cards(), 
+                                            game.get_player_cards(pid),
+                                            game.get_deck_size(),
+                                            game.get_player_cards(game.get_stepping_player()).len(),
+                                        )
                                     }
                                 },
                                 Err(e) => JsonResponse::StepError(e),
