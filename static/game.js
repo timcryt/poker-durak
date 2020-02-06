@@ -15,6 +15,14 @@ function send(data) {{
     socket.send(data);
 }}
 
+function without(a, b) {
+    return a.filter(card =>
+        b.find((card_b, _index, _) => 
+            card[0] == card_b[0] && card[1] == card_b[1]
+        ) == undefined
+    );
+}
+
 function refresh_state(data) {
     if (data == JSON.parse('"Passive"')) {
         set_state(false);
@@ -24,7 +32,7 @@ function refresh_state(data) {
         data = data['Active']
         set_state(true);
         document.getElementById('comb').innerHTML = print_cards(data['comb']['cards']);
-        document.getElementById('board').innerHTML = print_cards(data['cards']);
+        document.getElementById('board').innerHTML = print_cards(without(data['cards'], data['comb']['cards']));
     }
 }
 
@@ -55,11 +63,30 @@ function card_compare(a, b) {
     return (suit2num(a[SUIT]) + rank2num(a[RANK]) * 4) > (suit2num(b[SUIT]) + rank2num(b[RANK]) * 4);
 }
 
+function card_from(card) {
+    return [
+        "🂢", "🃒", "🃂", "🂲",
+        "🂣", "🃓", "🃃", "🂳",
+        "🂤", "🃔", "🃄", "🂴",
+        "🂥", "🃕", "🃅", "🂵",
+        "🂦", "🃖", "🃆", "🂶",
+        "🂧", "🃗", "🃇", "🂷",
+        "🂨", "🃘", "🃈", "🂸",
+        "🂩", "🃙", "🃉", "🂹",
+        "🂪", "🃚", "🃊", "🂺",
+        "🂫", "🃛", "🃋", "🂻",
+        "🂭", "🃝", "🃍", "🂽",
+        "🂮", "🃞", "🃎", "🂾",
+        "🂡", "🃑", "🃁", "🂱",
+    ][rank2num(card[RANK]) * 4 + suit2num(card[SUIT])];
+}
+
 function print_cards(cards) {
     s = '';
     cards.sort(card_compare).forEach(card => {
         t = card[RANK] + ' ' + card[SUIT]
-        s += `<button onclick="add_card('${t}')">+</button>` + t + '<br />'
+        c = card_from(card)
+        s += `<button onclick="add_card('${t}')" style="font-size: 60px">${c}</button>`
     }); 
     return s;
 }
