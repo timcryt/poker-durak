@@ -100,7 +100,7 @@ function print_cards(cards) {
     cards.sort(card_compare).forEach(card => {
         t = card[RANK] + ' ' + card[SUIT]
         c = card_from(card)
-        s += `<button id="${t}" onclick="add_card('${t}')" style="font-size: 60px; color: black; background-color: white">${c}</button>`
+        s += `<button id="${t}" onclick="add_card('${t}')" style="font-size: 60px; font-family: u1f000; color: black; background-color: white">${c}</button>`
     }); 
     return s;
 }
