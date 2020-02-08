@@ -22,6 +22,7 @@ extern crate env_logger;
 use rouille::websocket;
 use rouille::input;
 use rouille::Response;
+use rouille::content_encoding::apply;
 
 mod game;
 mod comb;
@@ -81,7 +82,7 @@ fn main() {
         router!(request,
             (GET) (/) => {
                 info!("GET /");
-                Response::from_file("text/html", File::open("static/index.html").unwrap())
+                apply(request, Response::from_file("text/html", File::open("static/index.html").unwrap()))
             },
 
             (GET) (/game) => {
@@ -98,7 +99,7 @@ fn main() {
                     }
                 }
 
-                resp
+                apply(request, resp)
             },
 
             (GET) (/game_script) => {
@@ -110,25 +111,25 @@ fn main() {
                     script_file.read_to_string(&mut game_script).unwrap();
                 }
             
-                Response::from_data("text/javascript", game_script
+                apply(request, Response::from_data("text/javascript", game_script
                     .replace("{host}", &addr_clone)
                     .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL.to_string())
-                )
+                ))
             },
 
             (GET) (/about) => {
                 info!("GET /about");
-                Response::from_file("text/html", File::open("static/about.html").unwrap())
+                apply(request, Response::from_file("text/html", File::open("static/about.html").unwrap()))
             },
 
             (GET) (/game_winner) => {
                 info!("GET /game_winner");
-                Response::from_file("text/html", File::open("static/winner.html").unwrap())
+                apply(request, Response::from_file("text/html", File::open("static/winner.html").unwrap()))
             },
 
             (GET) (/game_loser) => {
                 info!("GET /game_loser");
-                Response::from_file("text/html", File::open("static/loser.html").unwrap())
+                apply(request, Response::from_file("text/html", File::open("static/loser.html").unwrap()))
             },
 
             (GET) (/ws) => {
@@ -169,20 +170,20 @@ fn main() {
                     stat_html_file.read_to_string(&mut stat_html).unwrap();
                 }
 
-                Response::from_data("text/html", stat_html
+                apply(request, Response::from_data("text/html", stat_html
                     .replace("{all_games}", &all_games.to_string())
                     .replace("{now_games}", &now_games.to_string())
-                )
+                ))
             },
 
             (GET) (/cards_font) => {
                 info!("GET /cards_font");
-                Response::from_file("font/ttf", File::open("static/cards_font.ttf").unwrap())
+                apply(request, Response::from_file("font/ttf", File::open("static/cards_font.ttf").unwrap()))
             },
 
             _ => {
                 warn!("{} {} 404", request.method(), request.url());
-                rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
+                apply(request, rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404))
             }
         )
     });
