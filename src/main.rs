@@ -175,6 +175,11 @@ fn main() {
                 )
             },
 
+            (GET) (/cards_font) => {
+                info!("GET /cards_font");
+                Response::from_file("font/ttf", File::open("static/cards_font.ttf").unwrap())
+            },
+
             _ => {
                 warn!("{} {} 404", request.method(), request.url());
                 rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404)
