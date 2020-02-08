@@ -161,20 +161,18 @@ fn main() {
                 let game_pool = game_pool.lock().unwrap();
                 let all_games = game_pool.counter;
                 let now_games = game_pool.games.len();
-                Response::html(format!(r#"
-<html>
-    <head>
-        <meta charset="UTF-8">
-    </head>
-    <body>
-        <h1>Статистика игры покерный дурак</h1>
-        <p>
-            Начато игр: {}<br />
-            Идёт игр: {}<br />
-        </p>
-    </body>
-</html>
-"#, all_games, now_games))
+
+                let mut stat_html = String::new();
+                
+                {
+                    let mut stat_html_file = File::open("static/stat.html").unwrap();
+                    stat_html_file.read_to_string(&mut stat_html).unwrap();
+                }
+
+                Response::from_data("text/html", stat_html
+                    .replace("{all_games}", &all_games.to_string())
+                    .replace("{now_games}", &now_games.to_string())
+                )
             },
 
             _ => {
