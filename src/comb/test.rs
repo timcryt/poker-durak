@@ -10,6 +10,13 @@ fn comb_test_straight_flush() {
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
         ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::StraightFlush(CardRank::Ace));
+    assert_eq!(Comb::new(vec![
+        Card {rank: CardRank::Two, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Three, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Four, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Five, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::StraightFlush(CardRank::Five));
 }
 
 #[test]
@@ -39,7 +46,7 @@ fn comb_test_full_house() {
         Card {rank: CardRank::King, suit: CardSuit::Spades},
         Card {rank: CardRank::King, suit: CardSuit::Hearts},
         Card {rank: CardRank::King, suit: CardSuit::Diamonds}
-    ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse(((CardRank::Ace, CardRank::King), 2))); 
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::FullHouse(((CardRank::Ace, CardRank::King), 2))); 
 }
 
 #[test]
@@ -62,6 +69,13 @@ fn comb_test_straight() {
         Card {rank: CardRank::King, suit: CardSuit::Clubs},
         Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
         ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Straight(CardRank::Ace));
+    assert_eq!(Comb::new(vec![    
+        Card {rank: CardRank::Two, suit: CardSuit::Hearts},
+        Card {rank: CardRank::Three, suit: CardSuit::Spades},
+        Card {rank: CardRank::Four, suit: CardSuit::Diamonds},
+        Card {rank: CardRank::Five, suit: CardSuit::Clubs},
+        Card {rank: CardRank::Ace, suit: CardSuit::Hearts},
+        ].into_iter().collect::<HashSet<_>>()).unwrap().rank, CombRank::Straight(CardRank::Five));
 }
 
 #[test]
