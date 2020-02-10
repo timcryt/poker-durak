@@ -21,10 +21,20 @@ function parse_cards() {
     return cards_arr
 }
 
+function suit_color(card) {
+    suit = card.split(' ')[1]
+    if (suit == '♦' || suit == '♥') {
+        return 'red'
+    } else {
+        return 'black'
+    }
+
+}
+
 function cards_clear() {
     cards.forEach(card => {
         document.getElementById(card).style.backgroundColor = 'white';
-        document.getElementById(card).style.color = 'black';
+        document.getElementById(card).style.color = suit_color(card);
     })
     cards.clear()
 }
@@ -100,7 +110,7 @@ function print_cards(cards) {
     cards.sort(card_compare).forEach(card => {
         t = card[RANK] + ' ' + card[SUIT]
         c = card_from(card)
-        s += `<button id="${t}" onclick="add_card('${t}')" style="font-size: 60px; font-family: Cards; color: black; background-color: white">${c}</button>`
+        s += `<button id="${t}" onclick="add_card('${t}')" style="font-size: 60px; font-family: Cards; color: ${suit_color(t)}; background-color: white">${c}</button>`
     }); 
     return s;
 }
@@ -183,7 +193,7 @@ function add_card(card) {
         cards.add(card);
     } else {
         document.getElementById(card).style.backgroundColor = 'white';
-        document.getElementById(card).style.color = 'black';
+        document.getElementById(card).style.color = suit_color(card);
         cards.delete(card);
     }
 }
