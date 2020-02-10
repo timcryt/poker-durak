@@ -334,7 +334,13 @@ impl Game {
         while  self.get_stepping_player() != player {
             if self.get_deck_size() > 0 {
                 let player = self.get_stepping_player();
-                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+                if self.players[self.players_map[&player]].cards.len() > 5 {
+                    self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+                } else {
+                    while self.players[self.players_map[&player]].cards.len() < 6 && self.deck.size() > 0 {
+                        self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+                    }
+                }
             }
             self.next_player();
         }
