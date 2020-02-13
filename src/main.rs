@@ -31,7 +31,11 @@ mod card;
 use crate::game::*;
 use crate::card::*;
 
-const HEARTBIT_INTERVAL: u64 = 15;
+const HEARTBIT_INTERVAL_SECS: u64 = 15;
+const TIMEOUT_SECS: u64 = 300;
+const PLAYING_ACTIVITY_WAIT_MILLIS: u64 = 200;
+const WS_CLOSED_WAIT_SECS: u64 = 5; 
+const WS_UPDATE_MILLIS: u64 = 100;
 
 
 struct GamePool {
@@ -161,7 +165,7 @@ fn main() {
 
                         apply(request, Response::from_data(data_by_url(&url), data
                             .replace("{host}", &addr_clone)
-                            .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL.to_string())
+                            .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL_SECS.to_string())
                             .replace("{all_games}", &all_games.to_string())
                             .replace("{now_games}", &now_games.to_string())
                         ))
@@ -200,8 +204,8 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
     });
 
     let now = SystemTime::now();
-    while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL) {
-        sleep(Duration::from_millis(100));
+    while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL_SECS) {
+        sleep(Duration::from_millis(WS_UPDATE_MILLIS));
         let run_flag = *Arc::clone(&run_flag).lock().unwrap();
         match run_flag {
             true => {
@@ -236,8 +240,8 @@ enum JsonRequest {
 }
 
 fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePool>>, bool) {
-    const PLAYING_ACTIVITY_WAIT: u64 = 200;
-    sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT));
+    
+    sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT_MILLIS));
 
     if game_pool.lock().unwrap().on_delete.contains(&pid) {
         info!("PLAYER {} is restroring", pid);
@@ -259,7 +263,7 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePo
 fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::Websocket>>, ws_end_success: Option<bool>, pid: usize) {
     let game_pool = Arc::clone(&game_pool);
     thread::spawn(move || {
-        const WS_CLOSED_WAIT: u64 = 5; 
+        
 
         game_pool.lock().unwrap().on_delete.insert(pid);
 
@@ -267,7 +271,7 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, websocket: Arc<Mutex<websocket::We
             game_pool.lock().unwrap().waiting_players.remove(&pid);
         } else if ws_end_success == Some(false) {
             info!("PLAYER {} disconnected", pid);
-            sleep(Duration::from_secs(WS_CLOSED_WAIT));
+            sleep(Duration::from_secs(WS_CLOSED_WAIT_SECS));
         }
         
         let mut game_pool = game_pool.lock().unwrap();
@@ -323,7 +327,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
 
 fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
     
-    const TIMEOUT_SECS: u64 = 300;
+    
 
     let (game_pool, is_ret) = player_init(game_pool, pid);
     if is_ret {
