@@ -67,6 +67,7 @@ fn data_by_url(url: &str) -> &'static str {
         "/" | "/stat" | "/about" | "/game_winner" | "/game_loser" => "text/html",
         "/game_script" => "text/javascript",
         "/game_font" => "font/ttf",
+        "/favicon.ico" => "image/png",
         url if url.ends_with(".css") => "text/css",
         url if url.ends_with(".html") => "text/html",
         url if url.ends_with(".js") => "text/javascript",
@@ -157,18 +158,25 @@ fn main() {
                 match File::open("static".to_string() + router(&url)) {
                     Ok(mut file) => {
                         info!("GET {}", url);
-                        let mut data = String::new();
-                        file.read_to_string(&mut data).unwrap();
+                        let mut data = Vec::new();
+                        file.read_to_end(&mut data).unwrap();
 
                         let all_games = game_pool.lock().unwrap().counter;
                         let now_games = game_pool.lock().unwrap().games.len();
 
-                        apply(request, Response::from_data(data_by_url(&url), data
-                            .replace("{host}", &addr_clone)
-                            .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL_SECS.to_string())
-                            .replace("{all_games}", &all_games.to_string())
-                            .replace("{now_games}", &now_games.to_string())
-                        ))
+                        match String::from_utf8(data.clone()) {
+                            Ok(data) => 
+                                apply(request, Response::from_data(data_by_url(&url), data
+                                    .replace("{host}", &addr_clone)
+                                    .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL_SECS.to_string())
+                                    .replace("{all_games}", &all_games.to_string())
+                                    .replace("{now_games}", &now_games.to_string())
+                                )),
+                            Err(_) => {
+                                apply(request, Response::from_data(data_by_url(&url), data))
+                            }
+                        }
+                        
                     }
                     Err(_) => {
                         warn!("GET {} 404", url);
