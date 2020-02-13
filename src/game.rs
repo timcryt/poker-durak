@@ -236,6 +236,7 @@ impl Game {
                         }
                         Step::GetComb => {
                             self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                            self.get_cards_for_players();
                             self.cards_for_winners();
                             self.state = State::Passive;
                             self.next_player();
@@ -327,6 +328,19 @@ impl Game {
         return mini;
     }
 
+    fn get_cards_for_players(&mut self) {  
+        let player = self.get_stepping_player();
+        let mut f = true;
+        while self.get_stepping_player() != player || f {
+            self.next_player();
+            let player = self.get_stepping_player();
+            while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            }       
+            f = false;
+        }    
+    }
+
     fn cards_for_winners(&mut self) {
         let player = self.get_stepping_player();
         self.next_player();
@@ -334,13 +348,7 @@ impl Game {
         while  self.get_stepping_player() != player {
             if self.get_deck_size() > 0 {
                 let player = self.get_stepping_player();
-                if self.players[self.players_map[&player]].cards.len() > 5 {
-                    self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
-                } else {
-                    while self.players[self.players_map[&player]].cards.len() < 6 && self.deck.size() > 0 {
-                        self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
-                    }
-                }
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
             }
             self.next_player();
         }
