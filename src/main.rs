@@ -33,6 +33,7 @@ use crate::card::*;
 
 const HEARTBIT_INTERVAL: u64 = 15;
 
+
 struct GamePool {
     games: HashMap<usize, Game>,
     players: HashMap<usize, (usize, Option<std::time::SystemTime>)>,
@@ -55,6 +56,30 @@ fn get_sid(request: &rouille::Request) -> Option<usize> {
     } else {
         None
     } 
+}
+
+fn data_by_url(url: &str) -> &'static str {
+    match url {
+        "/" | "/stat" | "/about" | "/game_winner" | "/game_loser" => "text/html",
+        "/game_script" => "text/javascript",
+        "/game_font" => "font/ttf",
+        url if url.ends_with(".css") => "text/css",
+        url if url.ends_with(".html") => "text/html",
+        url if url.ends_with(".js") => "text/javascript",
+        url if url.ends_with(".ttf") => "font/ttf",
+        _ => "text/plain",
+    }
+}
+
+fn router<'a>(url: &'a str) -> &'a str {
+    match url {
+        "/" => "/index.html",
+        "/stat" => "/stat.html",
+        "/about" => "/about.html",
+        "/winner" => "/winner.html",
+        "/loser" => "/loser.html",
+        url => url,
+    }
 }
 
 fn main() {
@@ -80,11 +105,6 @@ fn main() {
 
     rouille::start_server(&addr, move |request| {
         router!(request,
-            (GET) (/) => {
-                info!("GET /");
-                apply(request, Response::from_file("text/html", File::open("static/index.html").unwrap()))
-            },
-
             (GET) (/game) => {
                 info!("GET /game");
                 let mut resp = Response::from_file("text/html", File::open("static/game.html").unwrap());
@@ -100,36 +120,6 @@ fn main() {
                 }
 
                 apply(request, resp)
-            },
-
-            (GET) (/game_script) => {
-                info!("GET /game_script");
-                let mut game_script = String::new();
-                {
-                    let mut script_file = File::open("static/game.js").unwrap();
-                    
-                    script_file.read_to_string(&mut game_script).unwrap();
-                }
-            
-                apply(request, Response::from_data("text/javascript", game_script
-                    .replace("{host}", &addr_clone)
-                    .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL.to_string())
-                ))
-            },
-
-            (GET) (/about) => {
-                info!("GET /about");
-                apply(request, Response::from_file("text/html", File::open("static/about.html").unwrap()))
-            },
-
-            (GET) (/game_winner) => {
-                info!("GET /game_winner");
-                apply(request, Response::from_file("text/html", File::open("static/winner.html").unwrap()))
-            },
-
-            (GET) (/game_loser) => {
-                info!("GET /game_loser");
-                apply(request, Response::from_file("text/html", File::open("static/loser.html").unwrap()))
             },
 
             (GET) (/ws) => {
@@ -157,30 +147,32 @@ fn main() {
                 response
             },
 
-            (GET) (/stat) => {
-                info!("GET /stat");
-                let game_pool = game_pool.lock().unwrap();
-                let all_games = game_pool.counter;
-                let now_games = game_pool.games.len();
+            (GET) (/{_any: String}) => {
+                let url = request.url();   
 
-                let mut stat_html = String::new();
-                
-                {
-                    let mut stat_html_file = File::open("static/stat.html").unwrap();
-                    stat_html_file.read_to_string(&mut stat_html).unwrap();
+                match File::open("static".to_string() + router(&url)) {
+                    Ok(mut file) => {
+                        info!("GET {}", url);
+                        let mut data = String::new();
+                        file.read_to_string(&mut data).unwrap();
+
+                        let all_games = game_pool.lock().unwrap().counter;
+                        let now_games = game_pool.lock().unwrap().games.len();
+
+                        apply(request, Response::from_data(data_by_url(&url), data
+                            .replace("{host}", &addr_clone)
+                            .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL.to_string())
+                            .replace("{all_games}", &all_games.to_string())
+                            .replace("{now_games}", &now_games.to_string())
+                        ))
+                    }
+                    Err(_) => {
+                        warn!("GET {} 404", url);
+                        apply(request, rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404))
+                    }
                 }
-
-                apply(request, Response::from_data("text/html", stat_html
-                    .replace("{all_games}", &all_games.to_string())
-                    .replace("{now_games}", &now_games.to_string())
-                ))
+                               
             },
-
-            (GET) (/cards_font) => {
-                info!("GET /cards_font");
-                apply(request, Response::from_file("font/ttf", File::open("static/cards_font.ttf").unwrap()))
-            },
-
             _ => {
                 warn!("{} {} 404", request.method(), request.url());
                 apply(request, rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404))

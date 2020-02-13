@@ -149,9 +149,9 @@ socket.onmessage = function(event) {{
             deck_size = data[2] + 0;
             refresh_state(data[0]);
         } else if (data == 'GameWinner') {
-            location.replace('/game_winner');
+            location.replace('/winner');
         } else if (data == 'GameLoser') {
-            location.replace('/game_loser');
+            location.replace('/loser');
         } else if (data['ID']) {
             document.getElementById('GamePID').innerText = data['ID'];
         }
