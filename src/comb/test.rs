@@ -1,4 +1,6 @@
+#[allow(unused_imports)]
 use crate::comb::*;
+#[allow(unused_imports)]
 use crate::card::*;
 
 #[test]
