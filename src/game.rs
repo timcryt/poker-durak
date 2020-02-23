@@ -354,11 +354,6 @@ impl GameTrait for Game {
     }
 }
 
-struct GameManager {
-    game: Game,
-    game_channel: GameChannelServer,
-}
-
 pub struct GameChannelServer (
     std::sync::mpsc::Receiver<GameRequest>,
     std::sync::mpsc::Sender<GameResponse>,
