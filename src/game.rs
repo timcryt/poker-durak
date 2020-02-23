@@ -373,7 +373,8 @@ enum GameRequest {
     GetDeckSize,
     IsPlayerKicked(PID),
     GetGameWinner,
-    GetState
+    GetState,
+    Exit(PID)
 }
 
 enum GameResponse {
@@ -385,6 +386,12 @@ enum GameResponse {
     PlayerKicked(bool),
     GameWinner(Option<PID>),
     GameState(State),
+}
+
+impl GameChannelClient {
+    pub fn exit(self, pid: PID) {
+        self.0.send(GameRequest::Exit(pid)).unwrap();
+    }
 }
 
 impl GameTrait for GameChannelClient {
@@ -477,11 +484,6 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
 
                         GameRequest::KickPlayer(pid) => {
                             game.kick_player(pid);
-                            playing[player.0] = false;
-                            count -= 1;
-                            if count == 0 {
-                                break 'outer;
-                            }
                         }
 
                         GameRequest::GetSteppingPlayer => {
@@ -506,6 +508,15 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
 
                         GameRequest::GetState => {
                             (player.1).1.send(GameResponse::GameState(game.get_state_cards())).unwrap();
+                        }
+
+                        GameRequest::Exit(pid) => {
+                            game.kick_player(pid);
+                            playing[player.0] = false;
+                            count -= 1;
+                            if count == 0 {
+                                break 'outer;
+                            }                            
                         }
                     },
                     Err(std::sync::mpsc::TryRecvError::Disconnected) => {

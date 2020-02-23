@@ -320,11 +320,15 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
+    info!("PLAYER {} exiting!", pid);
     game.kick_player(pid);
     if game.game_winner() == Some(pid) {
         if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
     } else {
         if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
     }
+    info!("PLAYER {} exited!", pid);
+    game.exit(pid);
+    
 
 }
