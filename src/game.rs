@@ -462,7 +462,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
     let mut count = players.len();
     let mut game = Game::new(players.iter().map(|x| x.0).collect()).unwrap();
     let players = players.into_iter().map(|x| x.1).collect::<Vec<_>>();
-    loop {
+    'outer: loop {
         for player in players.iter().enumerate() {
             if playing[player.0] {
                 match (player.1).0.try_recv() {
@@ -480,7 +480,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
                             playing[player.0] = false;
                             count -= 1;
                             if count == 0 {
-                                return;
+                                break 'outer;
                             }
                         }
 
@@ -512,7 +512,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
                         playing[player.0] = false;
                         count -= 1;
                         if count == 0 {
-                            return;
+                            break 'outer;
                         }
                     },
                     _ => {},
@@ -520,6 +520,8 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
             }
         }
     }
+
+    info!("GAME exiting");
 }
 
 pub fn new_game_channel() -> (GameChannelServer, GameChannelClient) {
