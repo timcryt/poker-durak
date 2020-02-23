@@ -389,13 +389,22 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     let mut your_turn_new = true;
     let mut ws_end_success = false;
 
+    let mut stepping_time: Option<SystemTime> = {
+        let mut game_pool = game_pool.lock().unwrap();
+        match game_pool.players_time.remove(&pid) {
+            Some(time) => time,
+            None => None,
+        }
+    };
+
+
     while let Some(message) = websocket_next(&websocket) {
         {
             if game.get_stepping_player() == pid && your_turn_new {
-                if game_pool.lock().unwrap().players_time.get_mut(&pid).unwrap().is_none() {
-                    *game_pool.lock().unwrap().players_time.get_mut(&pid).unwrap() = Some(SystemTime::now());
+                if stepping_time.is_none() {
+                    stepping_time = Some(SystemTime::now());
                 }
-                let time_elapsed = game_pool.lock().unwrap().players_time[&pid].unwrap().elapsed().unwrap().as_secs();
+                let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
 
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
                     game.get_state_cards(),
@@ -406,7 +415,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 )).unwrap()).ok(); 
                 your_turn_new = false; 
             } else if game.get_stepping_player() == pid && 
-                game_pool.lock().unwrap().players_time[&pid].unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
+                stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
                 ws_end_success = true;
                 break;
             }
@@ -465,5 +474,10 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
             },
         }
     }
+
+    if !ws_end_success {
+        game_pool.lock().unwrap().players_time.insert(pid, stepping_time);
+    }
+
     game_exit(game_pool, Some(game), websocket, Some(ws_end_success), pid);
 }
