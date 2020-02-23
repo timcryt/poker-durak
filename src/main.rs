@@ -195,9 +195,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     
     const TIMEOUT_SECS: u64 = 300;
 
-
     game_pool.lock().unwrap().waiting_players.insert(pid);
-
 
     info!("GAME {} registrated!", pid);
     websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::ID(pid)).unwrap()).ok();
@@ -221,9 +219,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
         game_pool.waiting_players.clear();
 
-        thread::spawn(move || {
-            game_worker(now_playing);
-        });
+        thread::spawn(move || game_worker(now_playing));
     } else {
         loop {
             let message = websocket_next(&websocket);
@@ -254,40 +250,32 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
     let mut game = game_pool.lock().unwrap().players_channels.1.remove(&pid).unwrap();
 
-
     info!("GAME {} is playing!", pid);
-    {
-        websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
-            game.get_player_cards(pid),
-            game.get_deck_size(),
-            TIMEOUT_SECS,
-        )).unwrap()).ok();
-
-    }
+    websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
+        game.get_player_cards(pid),
+        game.get_deck_size(),
+        TIMEOUT_SECS,
+    )).unwrap()).ok();
 
     let mut your_turn_new = true;
     let mut turn_time = SystemTime::now();
 
     while let Some(message) = websocket_next(&websocket) {
-        {
-            if game.get_stepping_player() == pid && your_turn_new {
-                turn_time = SystemTime::now();
-                websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
-                    game.get_state_cards(),
-                    game.get_player_cards(pid),
-                    game.get_deck_size(),
-                    game.players_decks()[0],
-                )).unwrap()).ok(); 
-                your_turn_new = false; 
-            } else if game.get_stepping_player() == pid && turn_time.elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
-                break;
-            }
-    
+        if game.get_stepping_player() == pid && your_turn_new {
+            turn_time = SystemTime::now();
+            websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
+                game.get_state_cards(),
+                game.get_player_cards(pid),
+                game.get_deck_size(),
+                game.players_decks()[0],
+            )).unwrap()).ok(); 
+            your_turn_new = false; 
+        } else if game.get_stepping_player() == pid && turn_time.elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
+            break;
         }
 
         match message {
             websocket::Message::Text(txt) => {
-
                 if txt != "\"Ping\"" {
                     info!("GAME From {} request {}", pid, txt);
                 }
@@ -321,10 +309,8 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
                 websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
 
-                {
-                    if let Some(_) = game.game_winner() {
-                        break;
-                    }
+                if let Some(_) = game.game_winner() {
+                    break;
                 }
 
             },
@@ -334,32 +320,11 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
-    {
-        game.kick_player(pid);
-        if game.game_winner() == Some(pid) {
-            if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
-        } else {
-            if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
-        }
+    game.kick_player(pid);
+    if game.game_winner() == Some(pid) {
+        if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
+    } else {
+        if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
     }
-
-    /*
-    info!("GAME {} is exiting!", pid);
-    {
-        let mut game_pool = game_pool.lock().unwrap();
-        if game_pool.players.contains_key(&pid) {
-            let player_game = game_pool.players[&pid];
-            game_pool.games.get_mut(&player_game).unwrap().kick_player(pid);
-            game_pool.players.remove(&pid);
-        }
-        game_pool.rev_players.get_mut(&gid).unwrap().remove(&pid);
-        if game_pool.rev_players[&gid].len() == 0 {
-            game_pool.games.remove(&gid);
-            game_pool.rev_players.remove(&gid);
-            info!("GAME game {} deleted", gid);
-        }
-    }
-    info!("GAME {} exited!", pid);
-    */
 
 }
