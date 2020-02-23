@@ -66,7 +66,7 @@ fn get_sid(request: &rouille::Request) -> Option<usize> {
 
 fn data_by_url(url: &str) -> &'static str {
     match url {
-        "/" | "/stat" | "/about" | "/game_winner" | "/game_loser" => "text/html",
+        "/" | "/stat" | "/about" | "/winner" | "/loser" => "text/html",
         "/game_script" => "text/javascript",
         "/game_font" => "font/ttf",
         "/favicon.ico" => "image/png",
@@ -256,12 +256,12 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePo
     sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT_MILLIS));
 
     if game_pool.lock().unwrap().on_delete.contains_key(&pid) {
-        info!("PLAYER {} is restroring", pid);
+        info!("PLAYER {} is restoring", pid);
         let restr_game = game_pool.lock().unwrap().on_delete.remove(&pid).unwrap();
         (game_pool, false, restr_game)
     } else if game_pool.lock().unwrap().players.contains(&pid) {
         if game_pool.lock().unwrap().on_delete.contains_key(&pid) {
-            info!("PLAYER {} is restroring", pid);
+            info!("PLAYER {} is restoring", pid);
             let restr_game = game_pool.lock().unwrap().on_delete.remove(&pid).unwrap();
             (game_pool, false, restr_game)
         } else {
@@ -344,9 +344,6 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
 }
 
 fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
-    
-    
-
     let (game_pool, is_ret, restr_game) = player_init(game_pool, pid);
     if is_ret {
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YouArePlaying).unwrap()).ok();
