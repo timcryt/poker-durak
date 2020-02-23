@@ -147,8 +147,7 @@ fn main() {
                 let game_pool = Arc::clone(&game_pool);
 
                 thread::spawn(move || {
-                    let ws = Arc::new(Mutex::new(websocket.recv().unwrap()));
-                    websocket_handling_thread(ws, game_pool, sid);
+                    websocket_handling_thread(websocket.recv().unwrap(), game_pool, sid);
                 });
 
                 response
@@ -196,21 +195,15 @@ fn main() {
 }
 
 
-fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websocket::Message> {
-
-    let gotten = Arc::new(Mutex::new(None));
-    let gotten_clone = Arc::clone(&gotten);
+fn websocket_next(mut websocket: websocket::Websocket) -> Option<(websocket::Websocket, Option<websocket::Message>)> {
     let run_flag = Arc::new(Mutex::new(false));
     let run_flag_clone = Arc::clone(&run_flag);
 
-    let websocket_clone = Arc::clone(websocket);
     let child = thread::spawn(move || {
-        {
-            let mut gotten_clone = gotten_clone.lock().unwrap();
-            *gotten_clone = websocket_clone.lock().unwrap().next();
-            let mut run_flag = run_flag_clone.lock().unwrap();
-            *run_flag = true;
-        }
+        let msg = websocket.next();
+        let mut run_flag = run_flag_clone.lock().unwrap();
+        *run_flag = true;
+        Some((websocket, msg))
     });
 
     let now = SystemTime::now();
@@ -219,8 +212,8 @@ fn websocket_next(websocket: &Arc<Mutex<websocket::Websocket>>) -> Option<websoc
         let run_flag = *Arc::clone(&run_flag).lock().unwrap();
         match run_flag {
             true => {
-                child.join().ok();
-                return gotten.lock().unwrap().clone();
+                return child.join().ok().flatten();
+                
             },
             false => (),
         }
@@ -273,7 +266,7 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePo
     
 }
     
-fn game_exit(game_pool: Arc<Mutex<GamePool>>, game: Option<GameChannelClient>, websocket: Arc<Mutex<websocket::Websocket>>, ws_end_success: Option<bool>, pid: usize) {
+fn game_exit(game_pool: Arc<Mutex<GamePool>>, game: Option<GameChannelClient>, websocket: Option<websocket::Websocket>, ws_end_success: Option<bool>, pid: usize) {
     let game_pool = Arc::clone(&game_pool);
     thread::spawn(move || {
 
@@ -294,9 +287,9 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, game: Option<GameChannelClient>, w
                 info!("PLAYER {} is exiting!", pid);
                 game.kick_player(pid);
                 if game.game_winner() == Some(pid) {
-                    if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
+                    if let Some(mut websocket) = websocket {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
                 } else {
-                    if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
+                    if let Some(mut websocket) = websocket {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
                 }
                 
                 if game.exit(pid) {
@@ -339,15 +332,15 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     thread::spawn(move || game_worker(now_playing));
 }
 
-fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
+fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
     let (game_pool, is_ret, restr_game) = player_init(game_pool, pid);
     if is_ret {
-        websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YouArePlaying).unwrap()).ok();
+        websocket.send_text(&serde_json::to_string(&JsonResponse::YouArePlaying).unwrap()).ok();
         info!("PLAYER {} is playing from another socket", pid);
         return;
     }
 
-    websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::ID(pid)).unwrap()).ok();
+    websocket.send_text(&serde_json::to_string(&JsonResponse::ID(pid)).unwrap()).ok();
 
     let mut game = if let Some(game) = restr_game {
         game
@@ -356,31 +349,39 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     } else {
         loop {
-            let message = websocket_next(&websocket);
             if game_pool.lock().unwrap().players.contains(&pid) {
                 break
             }
+
+            let ans = websocket_next(websocket);
             
-            if message == None {
-                game_exit(game_pool, None, websocket, None, pid);
-                return;
-            } else {
-                if let websocket::Message::Text(txt) = message.unwrap() {
-                    if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
-                        match req {
-                            JsonRequest::Ping => {websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap()).ok();},
-                            _ => ()
+            websocket = match ans {
+                None => {
+                  game_exit(game_pool, None, None, None, pid);
+                    return;
+                }
+                Some((websocket, None)) => {
+                    game_exit(game_pool, None, Some(websocket), None, pid);
+                    return;
+                }
+                Some((mut websocket, message)) => {
+                    if let websocket::Message::Text(txt) = message.unwrap() {
+                        if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
+                            match req {
+                                JsonRequest::Ping => {websocket.send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap()).ok();},
+                                _ => ()
+                            }
                         }
                     }
+                    websocket
                 }
-
-            }
+            };
         }
         game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     };
 
     info!("PLAYER {} is playing!", pid);
-    websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
+    websocket.send_text(&serde_json::to_string(&JsonResponse::YourCards(
         game.get_player_cards(pid),
         game.get_deck_size(),
     )).unwrap()).ok();
@@ -397,81 +398,99 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     };
 
+    let mut websocket = Some(websocket);
 
-    while let Some(message) = websocket_next(&websocket) {
-        {
-            if game.get_stepping_player() == pid && your_turn_new {
-                if stepping_time.is_none() {
-                    stepping_time = Some(SystemTime::now());
-                }
-                let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
 
-                websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
-                    game.get_state_cards(),
-                    game.get_player_cards(pid),
-                    game.get_deck_size(),
-                    game.players_decks()[0],
-                    TIMEOUT_SECS - time_elapsed
-                )).unwrap()).ok(); 
-                your_turn_new = false; 
-            } else if game.get_stepping_player() == pid && 
-                stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
-                ws_end_success = true;
+    loop {
+        match websocket_next(websocket.unwrap()) {
+            None => {
+                websocket = None;
                 break;
             }
-    
-        }
-
-        match message {
-            websocket::Message::Text(txt) => {
-                if txt != "\"Ping\"" {
-                    info!("PLAYER From {} request {}", pid, txt);
-                }
-
-                let json_response = match serde_json::from_str(&txt) {
-                    Ok(json_request) => match json_request {
-                        JsonRequest::Ping => JsonResponse::Pong,
-                        JsonRequest::MakeStep(step) => {
-                            match game.make_step(pid, step) {
-                                Ok(()) => {
-                                    your_turn_new = true;
-                                    *game_pool.lock().unwrap().players_time.get_mut(&pid).unwrap() = None;
-                                    if game.is_player_kicked(pid) {
-                                        ws_end_success = true;
-                                        break;
-                                    } else {
-                                        JsonResponse::YouMadeStep(
-                                            game.get_state_cards(), 
-                                            game.get_player_cards(pid),
-                                            game.get_deck_size(),
-                                            game.get_player_cards(game.get_stepping_player()).len(),
-                                        )
-                                    }
-                                },
-                                Err(e) => JsonResponse::StepError(e),
-                            }
+            Some((ws, None)) => {
+                websocket = Some(ws);
+                break;
+            }
+            Some((mut ws, Some(message))) => {
+                {
+                    if game.get_stepping_player() == pid && your_turn_new {
+                        if stepping_time.is_none() {
+                            stepping_time = Some(SystemTime::now());
                         }
+                        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
+    
+                        ws.send_text(&serde_json::to_string(&JsonResponse::YourTurn(
+                            game.get_state_cards(),
+                            game.get_player_cards(pid),
+                            game.get_deck_size(),
+                            game.players_decks()[0],
+                            TIMEOUT_SECS - time_elapsed
+                        )).unwrap()).ok(); 
+                        your_turn_new = false; 
+                    } else if game.get_stepping_player() == pid && 
+                        stepping_time.is_some() &&
+                        stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
+                        ws_end_success = true;
+                        websocket = Some(ws);
+                        break;
                     }
-                    Err(_) => JsonResponse::JsonError
-                };
-                
-                let mut websocket = websocket.lock().unwrap();
-
-                match &json_response {
-                    JsonResponse::Pong => (),
-                    _ => {info!("PLAYER Response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
+        
                 }
+    
+                match message {
+                    websocket::Message::Text(txt) => {
+                        if txt != "\"Ping\"" {
+                            info!("PLAYER From {} request {}", pid, txt);
+                        }
+    
+                        let json_response = match serde_json::from_str(&txt) {
+                            Ok(json_request) => match json_request {
+                                JsonRequest::Ping => JsonResponse::Pong,
+                                JsonRequest::MakeStep(step) => {
+                                    match game.make_step(pid, step) {
+                                        Ok(()) => {
+                                            your_turn_new = true;
+                                            stepping_time = None;
+                                            if game.is_player_kicked(pid) {
+                                                ws_end_success = true;
+                                                websocket = Some(ws);
+                                                break;
+                                            } else {
+                                                JsonResponse::YouMadeStep(
+                                                    game.get_state_cards(), 
+                                                    game.get_player_cards(pid),
+                                                    game.get_deck_size(),
+                                                    game.get_player_cards(game.get_stepping_player()).len(),
+                                                )
+                                            }
+                                        },
+                                        Err(e) => JsonResponse::StepError(e),
+                                    }
+                                }
+                            }
+                            Err(_) => JsonResponse::JsonError
+                        };
+    
+                        match &json_response {
+                            JsonResponse::Pong => (),
+                            _ => {info!("PLAYER Response {} to {}", serde_json::to_string(&json_response).unwrap(), pid);}
+                        }
+    
+                        ws.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
+    
+                        if let Some(_) = game.game_winner() {
+                            websocket = Some(ws);
+                            break;
+                        }
+    
+                    },
 
-                websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
-
-                if let Some(_) = game.game_winner() {
-                    break;
+                    _ => {
+                        warn!("PLAYER Unknown message from a websocket {}", pid);
+                    },
                 }
-
-            },
-            _ => {
-                warn!("PLAYER Unknown message from a websocket {}", pid);
-            },
+                websocket = Some(ws);
+            }
         }
     }
 
