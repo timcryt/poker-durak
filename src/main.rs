@@ -329,7 +329,8 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     }
     game_pool.waiting_players.clear();
 
-    thread::spawn(move || game_worker(now_playing));
+    let counter: usize = game_pool.counter;
+    thread::spawn(move || game_worker(now_playing, counter));
 }
 
 fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc<Mutex<GamePool>>, pid: usize) {

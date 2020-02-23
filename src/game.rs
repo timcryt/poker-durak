@@ -486,11 +486,12 @@ impl GameTrait for GameChannelClient {
 
 const MANAGER_SLEEP_MILLIS: u64 = 100;
 
-pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
+pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
     let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
     let mut count = players.len();
     let mut game = Game::new(players.iter().map(|x| x.0).collect()).unwrap();
     let players = players.into_iter().map(|x| x.1).collect::<Vec<_>>();
+    info!("GAME {} started", gid);
     'outer: loop {
         for player in players.iter().enumerate() {
             if playing[player.0] {
@@ -556,8 +557,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
         }
         std::thread::sleep(std::time::Duration::from_millis(MANAGER_SLEEP_MILLIS));
     }
-
-    info!("GAME exiting");
+    info!("GAME {} exiting", gid);
 }
 
 pub fn new_game_channel() -> (GameChannelServer, GameChannelClient) {
