@@ -464,6 +464,8 @@ impl GameTrait for GameChannelClient {
     }
 }
 
+const MANAGER_SLEEP_MILLIS: u64 = 100;
+
 pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
     let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
     let mut count = players.len();
@@ -530,6 +532,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
                 }
             }
         }
+        std::thread::sleep(std::time::Duration::from_millis(MANAGER_SLEEP_MILLIS));
     }
 
     info!("GAME exiting");
