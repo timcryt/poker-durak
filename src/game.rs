@@ -198,6 +198,19 @@ impl Game {
             self.next_player();
         }
     }
+  
+    fn get_cards_for_players(&mut self) {  
+        let player = self.get_stepping_player();
+        let mut f = true;
+        while self.get_stepping_player() != player || f {
+            self.next_player();
+            let player = self.get_stepping_player();
+            while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            }       
+            f = false;
+        }    
+    }
 }
 
 pub trait GameTrait {
@@ -293,6 +306,7 @@ impl GameTrait for Game {
                         }
                         Step::GetComb => {
                             self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                            self.get_cards_for_players();
                             self.cards_for_winners();
                             self.state = State::Passive;
                             self.next_player();
@@ -410,6 +424,7 @@ impl GameTrait for GameChannelClient {
             _ => panic!(),
         }
     }
+
 
     fn kick_player(&mut self, pid: PID) {
         self.0.send(GameRequest::KickPlayer(pid)).unwrap();

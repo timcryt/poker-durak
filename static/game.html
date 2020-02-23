@@ -2,11 +2,12 @@
 <html>
     <head>
         <meta charset="UTF-8">
-        <script type="text/javascript" src="game_script"></script>
-        <style>.resp {margin-left: 48pt};</style>
+        <meta name="viewport" content="width=device-width; initial-scale=1.0">
+        <script type="text/javascript" src="/game.js"></script>
+        <style>.resp {margin-left: 48pt} @font-face {font-family: Cards; src:url('/cards_font.ttf')}</style>
     </head>
     <body onload="setInterval(heartbit, 1000);set_state(false);">
-        <p>Веб интерфейс игры "покерный дурак", версия 0.3.0</p>
+        <p>Веб интерфейс игры "покерный дурак", версия 1.0.0</p>
         <p>
             <a href="/about" target="_blank">Об игре</a>
             <b id="NetStat" style="color: orange">Соединение не установлено</b><br />
@@ -15,12 +16,9 @@
 
         <div>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetCard'}))" id="GetCardBut">Взять карту</button>
-            <button onclick="send(JSON.stringify({'MakeStep' : {'GiveComb': cards}}))" id="GiveCombBut">Выложить комбинацию</button>
-            <button onclick="send(JSON.stringify({'MakeStep' : {'TransComb': cards}}))" id="TransCombBut">Перевести комбинацию</button>
+            <button onclick="send(JSON.stringify({'MakeStep': {'GiveComb': parse_cards()}}))" id="GiveCombBut">Выложить комбинацию</button>
+            <button onclick="send(JSON.stringify({'MakeStep': {'TransComb': parse_cards()}}))" id="TransCombBut">Перевести комбинацию</button>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetComb'}))" id="GetCombBut">Взять комбинацию</button>
-            <br />
-
-            <b>Выбранные карты <button onclick="clear_cards()">Очистить</button>: </b><br /><div class="resp"><span id="your_cards"></span></div>
         </div>
         <div id="WaitDiv"><p>Ждём второго игрока.</p></div>
         <div id="GameDiv" style="display: none">
@@ -57,13 +55,6 @@
                 <b>Карт в колоде: </b><span id="deck_size"></span><br />
                 <b>Карт у противника: </b><span id="opponent_deck">?</span>
             </p>
-        </div>
-
-        <div>
-            <b>Запрос на сервер: </b>
-            <div class="resp"><code><span id="req"></span></code></div>
-            <b>Ответ сервера:</b><br /> 
-            <div class="resp"><code><span id="resp"></span></code></div>
         </div>
     </body>
 </html>

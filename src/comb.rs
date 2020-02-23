@@ -15,7 +15,7 @@ enum CombRank {
     Set(CardRank),
     Straight(CardRank),
     Flush(CardRank),
-    FullHouse((CardRank, CardRank)),
+    FullHouse(((CardRank, CardRank), usize)),
     FourOfAKind(CardRank),
     StraightFlush(CardRank),
 }
@@ -77,23 +77,26 @@ impl Comb {
         if cards.len() == 5 {
             let mut m: Option<CardRank> = None;
             for i in CARD_SUITS.iter() {
-                let mut v = vec![false; CARD_RANKS.len()];
+                let mut v = vec![false; CARD_RANKS.len() + 1];
                 for j in cards {
                     if j.suit == *i {
-                        v[j.rank as usize] = true; 
+                        v[j.rank as usize + 1] = true;
+                        if j.rank == CardRank::Ace {
+                            v[0] = true;
+                        }
                     }
                 }
                 let mut c = 0;
-                for j in 0..CARD_RANKS.len() {
+                for j in 0..v.len() {
                     if v[j] {
                         c += 1;
                         if c == 5 {
                             m = match m {
                                 None =>
-                                    Some(CARD_RANKS[j]),
+                                    Some(CARD_RANKS[j - 1]),
                                 Some(x) =>
-                                    if x < CARD_RANKS[j] {
-                                        Some(CARD_RANKS[j])
+                                    if x < CARD_RANKS[j - 1] {
+                                        Some(CARD_RANKS[j - 1])
                                     } else {
                                         Some(x)
                                     }
@@ -111,9 +114,9 @@ impl Comb {
         }
     }
 
-    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<(CardRank, CardRank)> {
+    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<((CardRank, CardRank), usize)> {
         if cards.len() == x + y {
-            let mut m: Option<(CardRank, CardRank)> = None;
+            let mut m = None;
             for i in CARD_RANKS.iter() {
                 for j in CARD_RANKS.iter() {
                     if i < j {
@@ -128,10 +131,10 @@ impl Comb {
                                 let t = (*j, *i);
                                 m = match m {
                                     None =>
-                                        Some(t),
+                                        Some((t, cj)),
                                     Some(x) =>
-                                        if x < t {
-                                            Some(t)
+                                        if x.0 < t {
+                                            Some((t, cj))
                                         } else {
                                             Some(x)
                                         }
@@ -182,7 +185,7 @@ impl Comb {
     }
 
 
-    fn is_full_house(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
+    fn is_full_house(cards: &HashSet<Card>) -> Option<((CardRank, CardRank), usize)> {
         Comb::is_xy_of_a_kind(cards, 3, 2)
     }
 
@@ -191,7 +194,7 @@ impl Comb {
     }
 
     fn is_two_pairs(cards: &HashSet<Card>) -> Option<(CardRank, CardRank)> {
-        Comb::is_xy_of_a_kind(cards, 2, 2)
+        Comb::is_xy_of_a_kind(cards, 2, 2).map(|x| x.0)
     }
 
     fn is_pair(cards: &HashSet<Card>) -> Option<CardRank> {
@@ -238,16 +241,19 @@ impl Comb {
     fn is_straight(cards: &HashSet<Card>) -> Option<CardRank> {
         if cards.len() == 5 {
             let mut m: Option<CardRank> = None;
-            let mut v = vec![false; CARD_RANKS.len()];
+            let mut v = vec![false; CARD_RANKS.len() + 1];
             for i in cards {
-                v[i.rank as usize] = true;
+                v[i.rank as usize + 1] = true;
+                if i.rank == CardRank::Ace {
+                    v[0] = true;
+                }
             }
             let mut c = 0;
             for i in 0..v.len() {
                 if v[i] {
                     c += 1;
                     if c >= 5 {
-                        m = Some(CARD_RANKS[i]);
+                        m = Some(CARD_RANKS[i - 1]);
                     }
                 } else {
                     c = 0;
