@@ -30,9 +30,8 @@ use crate::game::*;
 use crate::card::*;
 
 struct GamePool {
-    games: HashMap<usize, Game>,
-    players: HashMap<usize, usize>,
-    rev_players: HashMap<usize, HashSet<usize>>,
+    players: HashSet<usize>,
+    players_channels: (HashMap<usize, GameChannelServer>, HashMap<usize, GameChannelClient>),
     waiting_players: HashSet<usize>,
     counter: usize,
 }
@@ -57,10 +56,9 @@ fn main() {
     game_script = game_script.replace("{host}", &addr);
 
 
-    let game_pool = Arc::new(Mutex::new(GamePool{
-        games: HashMap::new(),
-        players: HashMap::new(),
-        rev_players: HashMap::new(),
+    let game_pool = Arc::new(Mutex::new(GamePool {
+        players: HashSet::new(),
+        players_channels: (HashMap::new(), HashMap::new()),
         waiting_players: HashSet::new(),
         counter: 0,
     }));
@@ -114,7 +112,6 @@ fn main() {
                 info!("GET /stat");
                 let game_pool = game_pool.lock().unwrap();
                 let all_games = game_pool.counter;
-                let now_games = game_pool.games.len();
                 Response::html(format!(r#"
 <html>
     <head>
@@ -124,11 +121,10 @@ fn main() {
         <h1>Статистика игры покерный дурак</h1>
         <p>
             Начато игр: {}<br />
-            Идёт игр: {}<br />
         </p>
     </body>
 </html>
-"#, all_games, now_games))
+"#, all_games))
             },
 
             _ => {
@@ -212,19 +208,26 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         let players = game_pool.waiting_players.iter().map(|x| *x).collect::<Vec<_>>();
         game_pool.counter += 1;
         let counter = game_pool.counter;
-        game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
-        game_pool.games.insert(counter, Game::new(players.clone()).unwrap());
 
         info!("GAME game {} created", counter);
 
+        let mut now_playing = Vec::new();
+
         for player in players {
-            game_pool.players.insert(player, counter);
+            game_pool.players.insert(player);
+            let (serv, clnt) = new_game_channel();
+            now_playing.push((player, serv));
+            game_pool.players_channels.1.insert(player, clnt);
         }
         game_pool.waiting_players.clear();
+
+        thread::spawn(move || {
+            game_worker(now_playing);
+        });
     } else {
         loop {
             let message = websocket_next(&websocket);
-            if game_pool.lock().unwrap().players.contains_key(&pid) {
+            if game_pool.lock().unwrap().players.contains(&pid) {
                 break
             }
             
@@ -249,14 +252,11 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
-    let gid = game_pool.lock().unwrap().players[&pid];
+    let mut game = game_pool.lock().unwrap().players_channels.1.remove(&pid).unwrap();
 
 
     info!("GAME {} is playing!", pid);
     {
-        let mut game_pool = game_pool.lock().unwrap();
-        let game_id = game_pool.players[&pid];
-        let game = game_pool.games.get_mut(&game_id).unwrap();
         websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourCards(
             game.get_player_cards(pid),
             game.get_deck_size(),
@@ -270,9 +270,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
     while let Some(message) = websocket_next(&websocket) {
         {
-            let mut game_pool = game_pool.lock().unwrap();
-            let game_id = game_pool.players[&pid];
-            let game = game_pool.games.get_mut(&game_id).unwrap();
             if game.get_stepping_player() == pid && your_turn_new {
                 turn_time = SystemTime::now();
                 websocket.lock().unwrap().send_text(&serde_json::to_string(&JsonResponse::YourTurn(
@@ -299,9 +296,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                     Ok(json_request) => match json_request {
                         JsonRequest::Ping => JsonResponse::Pong,
                         JsonRequest::MakeStep(step) => {
-                            let mut game_pool = game_pool.lock().unwrap();
-                            let game_id = game_pool.players[&pid];
-                            let game = game_pool.games.get_mut(&game_id).unwrap();
                             match game.make_step(pid, step) {
                                 Ok(()) => {
                                     your_turn_new = true;
@@ -328,9 +322,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
                 websocket.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
 
                 {
-                    let mut game_pool = game_pool.lock().unwrap();
-                    let game_id = game_pool.players[&pid];
-                    let game = game_pool.games.get_mut(&game_id).unwrap();
                     if let Some(_) = game.game_winner() {
                         break;
                     }
@@ -344,9 +335,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
     }
 
     {
-        let mut game_pool = game_pool.lock().unwrap();
-        let game_id = game_pool.players[&pid];
-        let game = game_pool.games.get_mut(&game_id).unwrap();
         game.kick_player(pid);
         if game.game_winner() == Some(pid) {
             if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap()).ok();}; 
@@ -355,6 +343,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
 
+    /*
     info!("GAME {} is exiting!", pid);
     {
         let mut game_pool = game_pool.lock().unwrap();
@@ -371,5 +360,6 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         }
     }
     info!("GAME {} exited!", pid);
+    */
 
 }
