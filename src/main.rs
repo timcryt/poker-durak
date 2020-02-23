@@ -46,6 +46,7 @@ struct GamePool {
     waiting_players: HashSet<usize>,
     on_delete: HashMap<usize, Option<GameChannelClient>>,
     counter: usize,
+    playing: usize,
 }
 
 fn get_sid(request: &rouille::Request) -> Option<usize> {
@@ -106,6 +107,7 @@ fn main() {
         waiting_players: HashSet::new(),
         on_delete: HashMap::new(),
         counter: 0,
+        playing: 0,
     }));
 
     let addr_clone = addr.clone();
@@ -164,7 +166,7 @@ fn main() {
                         file.read_to_end(&mut data).unwrap();
 
                         let all_games = game_pool.lock().unwrap().counter;
-                        //let now_games = game_pool.lock().unwrap().games.len();
+                        let now_games = game_pool.lock().unwrap().playing;
 
                         match String::from_utf8(data.clone()) {
                             Ok(data) => 
@@ -172,7 +174,7 @@ fn main() {
                                     .replace("{host}", &addr_clone)
                                     .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL_SECS.to_string())
                                     .replace("{all_games}", &all_games.to_string())
-                                    //.replace("{now_games}", &now_games.to_string())
+                                    .replace("{now_games}", &now_games.to_string())
                                 )),
                             Err(_) => {
                                 apply(request, Response::from_data(data_by_url(&url), data))
@@ -298,7 +300,10 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, game: Option<GameChannelClient>, w
                 } else {
                     if let Ok(mut websocket) = websocket.try_lock() {websocket.send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap()).ok();};   
                 }
-                game.exit(pid);
+                
+                if game.exit(pid) {
+                    game_pool.playing -= 1;
+                }
 
                 if game_pool.players.contains(&pid) {
                     game_pool.players.remove(&pid);
@@ -320,6 +325,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     game_pool.counter += 1;
     let counter = game_pool.counter;
     game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
+    game_pool.playing += 1;
 
     info!("GAME {} created", counter);
 

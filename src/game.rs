@@ -400,11 +400,16 @@ enum GameResponse {
     PlayerKicked(bool),
     GameWinner(Option<PID>),
     GameState(State),
+    Exited(bool),
 }
 
 impl GameChannelClient {
-    pub fn exit(self, pid: PID) {
+    pub fn exit(self, pid: PID) -> bool {
         self.0.send(GameRequest::Exit(pid)).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::Exited(f) => f,
+            _ => panic!()
+        }
     }
 }
 
@@ -532,8 +537,10 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
                             playing[player.0] = false;
                             count -= 1;
                             if count == 0 {
+                                (player.1).1.send(GameResponse::Exited(true)).unwrap();
                                 break 'outer;
-                            }                            
+                            }  
+                            (player.1).1.send(GameResponse::Exited(false)).unwrap();                          
                         }
                     },
                     Err(std::sync::mpsc::TryRecvError::Disconnected) => {
