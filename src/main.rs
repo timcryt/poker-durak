@@ -40,9 +40,8 @@ const WS_UPDATE_MILLIS: u64 = 100;
 
 struct GamePool {
     players: HashSet<usize>,
-    players_channels: (HashMap<usize, GameChannelServer>, HashMap<usize, GameChannelClient>),
+    players_channels: HashMap<usize, GameChannelClient>,
     players_time: HashMap<usize, Option<std::time::SystemTime>>,
-    rev_players: HashMap<usize, HashSet<usize>>,
     waiting_players: HashSet<usize>,
     on_delete: HashMap<usize, Option<GameChannelClient>>,
     counter: usize,
@@ -101,9 +100,8 @@ fn main() {
 
     let game_pool = Arc::new(Mutex::new(GamePool {
         players: HashSet::new(),
-        players_channels: (HashMap::new(), HashMap::new()),
+        players_channels: HashMap::new(),
         players_time: HashMap::new(),
-        rev_players: HashMap::new(),
         waiting_players: HashSet::new(),
         on_delete: HashMap::new(),
         counter: 0,
@@ -307,8 +305,7 @@ fn game_exit(game_pool: Arc<Mutex<GamePool>>, game: Option<GameChannelClient>, w
 
                 if game_pool.players.contains(&pid) {
                     game_pool.players.remove(&pid);
-                    game_pool.players_channels.0.remove(&pid);
-                    game_pool.players_channels.1.remove(&pid);
+                    game_pool.players_channels.remove(&pid);
                     game_pool.players_time.remove(&pid);
                 }
             }
@@ -324,7 +321,6 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     let players = game_pool.waiting_players.iter().map(|x| *x).collect::<Vec<_>>();
     game_pool.counter += 1;
     let counter = game_pool.counter;
-    game_pool.rev_players.insert(counter, players.iter().map(|x| *x).collect());
     game_pool.playing += 1;
 
     info!("GAME {} created", counter);
@@ -335,7 +331,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
         game_pool.players.insert(player);
         let (serv, clnt) = new_game_channel();
         now_playing.push((player, serv));
-        game_pool.players_channels.1.insert(player, clnt);
+        game_pool.players_channels.insert(player, clnt);
         game_pool.players_time.insert(player, None);
     }
     game_pool.waiting_players.clear();
@@ -357,7 +353,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
         game
     } else if game_pool.lock().unwrap().waiting_players.len() >= 2 {
         game_create(Arc::clone(&game_pool));
-        game_pool.lock().unwrap().players_channels.1.remove(&pid).unwrap()
+        game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     } else {
         loop {
             let message = websocket_next(&websocket);
@@ -380,7 +376,7 @@ fn websocket_handling_thread(websocket: Arc<Mutex<websocket::Websocket>>, game_p
 
             }
         }
-        game_pool.lock().unwrap().players_channels.1.remove(&pid).unwrap()
+        game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     };
 
     info!("PLAYER {} is playing!", pid);
