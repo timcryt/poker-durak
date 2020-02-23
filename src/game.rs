@@ -156,7 +156,77 @@ impl Game {
         }   
     }
 
-    pub fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
+    fn win_player(&mut self, pid: PID) {
+        let player = self.players_map[&pid];
+
+        if self.players_next[player] == self.players_prev[player] && self.winner == None {
+            self.winner = Some(player);
+        }
+
+        self.players_next[self.players_prev[player]] = self.players_next[player];
+        self.players_prev[self.players_next[player]] = self.players_prev[player];
+        self.players_next[player] = player; 
+        if self.get_stepping_player() == pid {
+            self.next_player();
+        }
+    }
+
+    fn next_player(&mut self) {
+        let player = self.stepping_player;
+        self.stepping_player = self.players_next[player];
+    }
+
+    fn player_min(players: &Vec<Player>) -> usize {
+        let mut mini = 0;
+        for i in 1..players.len() {
+            if players[i] < players[mini] {
+                mini = i;
+            }
+        }
+        return mini;
+    }
+
+    fn cards_for_winners(&mut self) {
+        let player = self.get_stepping_player();
+        self.next_player();
+
+        while  self.get_stepping_player() != player {
+            if self.get_deck_size() > 0 {
+                let player = self.get_stepping_player();
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            }
+            self.next_player();
+        }
+    }
+  
+    fn get_cards_for_players(&mut self) {  
+        let player = self.get_stepping_player();
+        let mut f = true;
+        while self.get_stepping_player() != player || f {
+            self.next_player();
+            let player = self.get_stepping_player();
+            while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
+                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+            }       
+            f = false;
+        }    
+    }
+}
+
+pub trait GameTrait {
+    fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError>;
+    fn players_decks(&self) -> Vec<usize>;
+    fn kick_player(&mut self, pid: PID);
+    fn get_stepping_player(&self) -> PID;
+    fn get_player_cards(&self, pid: PID) -> HashSet<Card>;
+    fn get_deck_size(&self) -> usize;
+    fn is_player_kicked(&self, pid: PID) -> bool;
+    fn game_winner(&self) -> Option<PID>;
+    fn get_state_cards(&self) -> State;
+}
+
+impl GameTrait for Game {
+    fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
         let player = self.stepping_player;
         if self.players_map[&pid] != player {
             Err(StepError::InvalidPID)
@@ -248,14 +318,14 @@ impl Game {
         }
     }
 
-    pub fn players_decks(&self) -> Vec<usize> {
+    fn players_decks(&self) -> Vec<usize> {
         (1..self.players.len())
             .map(|i| 
                 self.players[(self.stepping_player + i) % self.players.len()].cards.len())
             .collect()
     }
 
-    pub fn kick_player(&mut self, pid: PID) {
+    fn kick_player(&mut self, pid: PID) {
         let player = self.players_map[&pid];
 
         if self.players_next[player] == self.players_prev[player] && self.winner == None {
@@ -270,87 +340,224 @@ impl Game {
         }
     }
 
-    fn win_player(&mut self, pid: PID) {
-        let player = self.players_map[&pid];
-
-        if self.players_next[player] == self.players_prev[player] && self.winner == None {
-            self.winner = Some(player);
-        }
-
-        self.players_next[self.players_prev[player]] = self.players_next[player];
-        self.players_prev[self.players_next[player]] = self.players_prev[player];
-        self.players_next[player] = player; 
-        if self.get_stepping_player() == pid {
-            self.next_player();
-        }
-    }
-
-    pub fn get_stepping_player(&self) -> PID {
+    fn get_stepping_player(&self) -> PID {
         self.players[self.stepping_player].id
     }
 
-    pub fn get_player_cards(&self, pid: PID) -> HashSet<Card> {
+    fn get_player_cards(&self, pid: PID) -> HashSet<Card> {
         self.players[self.players_map[&pid]].cards.clone()
     }
 
-    pub fn get_deck_size(&self) -> usize {
+    fn get_deck_size(&self) -> usize {
         self.deck.size()
     }
 
-    pub fn is_player_kicked(&self, pid: PID) -> bool {
+    fn is_player_kicked(&self, pid: PID) -> bool {
         self.players_next[self.players_map[&pid]] == self.players_map[&pid]
     }
 
-    pub fn game_winner(&self) -> Option<PID> {
+    fn game_winner(&self) -> Option<PID> {
         match self.winner {
             None => None,
             Some(winner) => Some(self.players[winner].id),
         }
     }
 
-    pub fn get_state_cards(&self) -> State {
+    fn get_state_cards(&self) -> State {
         self.state.clone()
     }
+}
 
+pub struct GameChannelServer (
+    std::sync::mpsc::Receiver<GameRequest>,
+    std::sync::mpsc::Sender<GameResponse>,
+);
 
-    fn next_player(&mut self) {
-        let player = self.stepping_player;
-        self.stepping_player = self.players_next[player];
+pub struct GameChannelClient (
+    std::sync::mpsc::Sender<GameRequest>,
+    std::sync::mpsc::Receiver<GameResponse>,
+);
+
+enum GameRequest {
+    MakeStep(usize, Step),
+    GetPlayersDecks,
+    KickPlayer(PID),
+    GetSteppingPlayer,
+    GetPlayerCards(PID),
+    GetDeckSize,
+    IsPlayerKicked(PID),
+    GetGameWinner,
+    GetState,
+    Exit(PID)
+}
+
+enum GameResponse {
+    YouMadeStep(Result<(), StepError>),
+    PlayersDecks(Vec<usize>),
+    SteppingPlayer(PID),
+    YourCards(HashSet<Card>),
+    DeckSize(usize),
+    PlayerKicked(bool),
+    GameWinner(Option<PID>),
+    GameState(State),
+}
+
+impl GameChannelClient {
+    pub fn exit(self, pid: PID) {
+        self.0.send(GameRequest::Exit(pid)).unwrap();
+    }
+}
+
+impl GameTrait for GameChannelClient {
+    fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
+        self.0.send(GameRequest::MakeStep(pid, step)).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::YouMadeStep(res) => res,
+            _ => panic!(), 
+        }
     }
 
-    fn player_min(players: &Vec<Player>) -> usize {
-        let mut mini = 0;
-        for i in 1..players.len() {
-            if players[i] < players[mini] {
-                mini = i;
+    fn players_decks(&self) -> Vec<usize> {
+        self.0.send(GameRequest::GetPlayersDecks).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::PlayersDecks(res) => res,
+            _ => panic!(),
+        }
+    }
+
+
+    fn kick_player(&mut self, pid: PID) {
+        self.0.send(GameRequest::KickPlayer(pid)).unwrap();
+    }
+
+    fn get_stepping_player(&self) -> usize {
+        self.0.send(GameRequest::GetSteppingPlayer).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::SteppingPlayer(pid) => pid,
+            _ => panic!(),
+        }
+    }
+
+    fn get_player_cards(&self, pid: PID) -> HashSet<Card> {
+        self.0.send(GameRequest::GetPlayerCards(pid)).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::YourCards(cards) => cards,
+            _ => panic!(),
+        }
+    }
+
+    fn get_deck_size(&self) -> usize {
+        self.0.send(GameRequest::GetDeckSize).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::DeckSize(size) => size,
+            _ => panic!(),
+        }
+    }
+
+    fn is_player_kicked(&self, pid: PID) -> bool {
+        self.0.send(GameRequest::IsPlayerKicked(pid)).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::PlayerKicked(f) => f,
+            _ => panic!(),
+        }
+    }
+
+    fn game_winner(&self) -> Option<PID> {
+        self.0.send(GameRequest::GetGameWinner).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::GameWinner(winner) => winner,
+            _ => panic!(),
+        }
+    }
+
+    fn get_state_cards(&self) -> State {
+        self.0.send(GameRequest::GetState).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::GameState(state) => state,
+            _ => panic!(),
+        }
+    }
+}
+
+const MANAGER_SLEEP_MILLIS: u64 = 100;
+
+pub fn game_worker(players: Vec<(PID, GameChannelServer)>) {
+    let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
+    let mut count = players.len();
+    let mut game = Game::new(players.iter().map(|x| x.0).collect()).unwrap();
+    let players = players.into_iter().map(|x| x.1).collect::<Vec<_>>();
+    'outer: loop {
+        for player in players.iter().enumerate() {
+            if playing[player.0] {
+                match (player.1).0.try_recv() {
+                    Ok(req) => match req {
+                        GameRequest::MakeStep(pid, step) => {
+                            (player.1).1.send(GameResponse::YouMadeStep(game.make_step(pid, step))).unwrap();
+                        }
+
+                        GameRequest::GetPlayersDecks => {
+                            (player.1).1.send(GameResponse::PlayersDecks(game.players_decks())).unwrap();
+                        }
+
+                        GameRequest::KickPlayer(pid) => {
+                            game.kick_player(pid);
+                        }
+
+                        GameRequest::GetSteppingPlayer => {
+                            (player.1).1.send(GameResponse::SteppingPlayer(game.get_stepping_player())).unwrap();
+                        }
+
+                        GameRequest::GetPlayerCards(pid) => {
+                            (player.1).1.send(GameResponse::YourCards(game.get_player_cards(pid))).unwrap();
+                        }
+
+                        GameRequest::GetDeckSize => {
+                            (player.1).1.send(GameResponse::DeckSize(game.get_deck_size())).unwrap();
+                        }
+
+                        GameRequest::IsPlayerKicked(pid) => {
+                            (player.1).1.send(GameResponse::PlayerKicked(game.is_player_kicked(pid))).unwrap();
+                        }
+
+                        GameRequest::GetGameWinner => {
+                            (player.1).1.send(GameResponse::GameWinner(game.game_winner())).unwrap();
+                        }
+
+                        GameRequest::GetState => {
+                            (player.1).1.send(GameResponse::GameState(game.get_state_cards())).unwrap();
+                        }
+
+                        GameRequest::Exit(pid) => {
+                            game.kick_player(pid);
+                            playing[player.0] = false;
+                            count -= 1;
+                            if count == 0 {
+                                break 'outer;
+                            }                            
+                        }
+                    },
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        playing[player.0] = false;
+                        count -= 1;
+                        if count == 0 {
+                            break 'outer;
+                        }
+                    },
+                    _ => {},
+                }
             }
         }
-        return mini;
+        std::thread::sleep(std::time::Duration::from_millis(MANAGER_SLEEP_MILLIS));
     }
 
-    fn get_cards_for_players(&mut self) {  
-        let player = self.get_stepping_player();
-        let mut f = true;
-        while self.get_stepping_player() != player || f {
-            self.next_player();
-            let player = self.get_stepping_player();
-            while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
-                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
-            }       
-            f = false;
-        }    
-    }
+    info!("GAME exiting");
+}
 
-    fn cards_for_winners(&mut self) {
-        let player = self.get_stepping_player();
-        self.next_player();
-
-        while  self.get_stepping_player() != player {
-            if self.get_deck_size() > 0 {
-                let player = self.get_stepping_player();
-                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
-            }
-            self.next_player();
-        }
-    }
+pub fn new_game_channel() -> (GameChannelServer, GameChannelClient) {
+    let (send_1, recv_1) = std::sync::mpsc::channel();
+    let (send_2, recv_2) = std::sync::mpsc::channel();
+    (
+        GameChannelServer(recv_1, send_2),
+        GameChannelClient(send_1, recv_2),
+    )
 }
