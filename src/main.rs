@@ -421,29 +421,26 @@ fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc
                 break;
             }
             Some((mut ws, Some(message))) => {
-                {
-                    if game.get_stepping_player() == pid && your_turn_new {
-                        if stepping_time.is_none() {
-                            stepping_time = Some(SystemTime::now());
-                        }
-                        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
-    
-                        ws.send_text(&serde_json::to_string(&JsonResponse::YourTurn(
-                            game.get_state_cards(),
-                            game.get_player_cards(pid),
-                            game.get_deck_size(),
-                            game.players_decks()[0],
-                            TIMEOUT_SECS - time_elapsed
-                        )).unwrap()).ok(); 
-                        your_turn_new = false; 
-                    } else if game.get_stepping_player() == pid && 
-                        stepping_time.is_some() &&
-                        stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
-                        ws_end_success = true;
-                        websocket = Some(ws);
-                        break;
+                if game.get_stepping_player() == pid && your_turn_new {
+                    if stepping_time.is_none() {
+                        stepping_time = Some(SystemTime::now());
                     }
-        
+                    let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
+    
+                    ws.send_text(&serde_json::to_string(&JsonResponse::YourTurn(
+                        game.get_state_cards(),
+                        game.get_player_cards(pid),
+                        game.get_deck_size(),
+                        game.players_decks()[0],
+                        TIMEOUT_SECS - time_elapsed
+                    )).unwrap()).ok(); 
+                    your_turn_new = false; 
+                } else if game.get_stepping_player() == pid && 
+                    stepping_time.is_some() &&
+                    stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS) {
+                    ws_end_success = true;
+                    websocket = Some(ws);
+                    break;
                 }
     
                 match message {
