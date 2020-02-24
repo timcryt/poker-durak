@@ -239,7 +239,8 @@ enum JsonResponse {
 #[derive(Deserialize)]
 enum JsonRequest {
     Ping,
-    MakeStep(Step)
+    MakeStep(Step),
+    Exit
 }
 
 fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (Arc<Mutex<GamePool>>, bool, Option<GameChannelClient>) {
@@ -401,7 +402,6 @@ fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc
 
     let mut websocket = Some(websocket);
 
-
     loop {
         match websocket_next(websocket.unwrap()) {
             None => {
@@ -468,6 +468,11 @@ fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc
                                         Err(e) => JsonResponse::StepError(e),
                                     }
                                 }
+                                JsonRequest::Exit => {
+                                    game.kick_player(pid);
+                                    ws_end_success = true;
+                                    JsonResponse::GameLoser
+                                }
                             }
                             Err(_) => JsonResponse::JsonError
                         };
@@ -479,7 +484,13 @@ fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc
     
                         ws.send_text(&serde_json::to_string(&json_response).unwrap()).unwrap();
     
+                        if ws_end_success {
+                            websocket = Some(ws);
+                            break;
+                        }
+
                         if let Some(_) = game.game_winner() {
+                            ws_end_success = true;
                             websocket = Some(ws);
                             break;
                         }

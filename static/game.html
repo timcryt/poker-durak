@@ -19,7 +19,10 @@
             <button onclick="send(JSON.stringify({'MakeStep': {'GiveComb': parse_cards()}}))" id="GiveCombBut">Выложить комбинацию</button>
             <button onclick="send(JSON.stringify({'MakeStep': {'TransComb': parse_cards()}}))" id="TransCombBut">Перевести комбинацию</button>
             <button onclick="send(JSON.stringify({'MakeStep': 'GetComb'}))" id="GetCombBut">Взять комбинацию</button>
+            <br />
+            <button onclick="send(JSON.stringify('Exit'))" id="ExitBut">Сдасться</button>
         </div>
+
         <div id="WaitDiv"><p>Ждём второго игрока.</p></div>
         <div id="GameDiv" style="display: none">
             <div>
