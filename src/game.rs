@@ -495,63 +495,58 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
     'outer: loop {
         for player in players.iter().enumerate() {
             if playing[player.0] {
-                match (player.1).0.try_recv() {
-                    Ok(req) => match req {
-                        GameRequest::MakeStep(pid, step) => {
-                            (player.1).1.send(GameResponse::YouMadeStep(game.make_step(pid, step))).unwrap();
-                        }
-
-                        GameRequest::GetPlayersDecks => {
-                            (player.1).1.send(GameResponse::PlayersDecks(game.players_decks())).unwrap();
-                        }
-
-                        GameRequest::KickPlayer(pid) => {
-                            game.kick_player(pid);
-                        }
-
-                        GameRequest::GetSteppingPlayer => {
-                            (player.1).1.send(GameResponse::SteppingPlayer(game.get_stepping_player())).unwrap();
-                        }
-
-                        GameRequest::GetPlayerCards(pid) => {
-                            (player.1).1.send(GameResponse::YourCards(game.get_player_cards(pid))).unwrap();
-                        }
-
-                        GameRequest::GetDeckSize => {
-                            (player.1).1.send(GameResponse::DeckSize(game.get_deck_size())).unwrap();
-                        }
-
-                        GameRequest::IsPlayerKicked(pid) => {
-                            (player.1).1.send(GameResponse::PlayerKicked(game.is_player_kicked(pid))).unwrap();
-                        }
-
-                        GameRequest::GetGameWinner => {
-                            (player.1).1.send(GameResponse::GameWinner(game.game_winner())).unwrap();
-                        }
-
-                        GameRequest::GetState => {
-                            (player.1).1.send(GameResponse::GameState(game.get_state_cards())).unwrap();
-                        }
-
-                        GameRequest::Exit(pid) => {
-                            game.kick_player(pid);
+                loop {
+                    match (player.1).0.try_recv() {
+                        Ok(req) => match req {
+                            GameRequest::MakeStep(pid, step) => {
+                                (player.1).1.send(GameResponse::YouMadeStep(game.make_step(pid, step))).unwrap();
+                            }
+                            GameRequest::GetPlayersDecks => {
+                                (player.1).1.send(GameResponse::PlayersDecks(game.players_decks())).unwrap();
+                            }
+                            GameRequest::KickPlayer(pid) => {
+                                game.kick_player(pid);
+                            }
+                            GameRequest::GetSteppingPlayer => {
+                                (player.1).1.send(GameResponse::SteppingPlayer(game.get_stepping_player())).unwrap();
+                            }
+                            GameRequest::GetPlayerCards(pid) => {
+                                (player.1).1.send(GameResponse::YourCards(game.get_player_cards(pid))).unwrap();
+                            }
+                            GameRequest::GetDeckSize => {
+                                (player.1).1.send(GameResponse::DeckSize(game.get_deck_size())).unwrap();
+                            }
+                            GameRequest::IsPlayerKicked(pid) => {
+                                (player.1).1.send(GameResponse::PlayerKicked(game.is_player_kicked(pid))).unwrap();
+                            }
+                            GameRequest::GetGameWinner => {
+                                (player.1).1.send(GameResponse::GameWinner(game.game_winner())).unwrap();
+                            }
+                            GameRequest::GetState => {
+                                (player.1).1.send(GameResponse::GameState(game.get_state_cards())).unwrap();
+                            }
+                            GameRequest::Exit(pid) => {
+                                game.kick_player(pid);
+                                playing[player.0] = false;
+                                count -= 1;
+                                if count == 0 {
+                                    (player.1).1.send(GameResponse::Exited(true)).unwrap();
+                                    break 'outer;
+                                }  
+                                (player.1).1.send(GameResponse::Exited(false)).unwrap();                          
+                            }
+                        },
+                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                             playing[player.0] = false;
                             count -= 1;
                             if count == 0 {
-                                (player.1).1.send(GameResponse::Exited(true)).unwrap();
                                 break 'outer;
-                            }  
-                            (player.1).1.send(GameResponse::Exited(false)).unwrap();                          
-                        }
-                    },
-                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                        playing[player.0] = false;
-                        count -= 1;
-                        if count == 0 {
-                            break 'outer;
-                        }
-                    },
-                    _ => {},
+                            }
+                        },
+                        Err(std::sync::mpsc::TryRecvError::Empty) => {
+                            break;
+                        },
+                    }
                 }
             }
         }
