@@ -334,6 +334,39 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     thread::spawn(move || game_worker(now_playing, counter));
 }
 
+fn wait_game(mut websocket: websocket::Websocket, game_pool: Arc<Mutex<GamePool>>, pid: usize) -> Option<websocket::Websocket> {
+    loop {
+        if game_pool.lock().unwrap().players.contains(&pid) {
+            break
+        }
+
+        let ans = websocket_next(websocket);
+        
+        websocket = match ans {
+            None => {
+              game_exit(game_pool, None, None, None, pid);
+                return None;
+            }
+            Some((websocket, None)) => {
+                game_exit(game_pool, None, Some(websocket), None, pid);
+                return None;
+            }
+            Some((mut websocket, message)) => {
+                if let websocket::Message::Text(txt) = message.unwrap() {
+                    if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
+                        match req {
+                            JsonRequest::Ping => {websocket.send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap()).ok();},
+                            _ => ()
+                        }
+                    }
+                }
+                websocket
+            }
+        };
+    }
+    Some(websocket)
+}
+
 fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc<Mutex<GamePool>>, pid: usize) {
     let (game_pool, is_ret, restr_game) = player_init(game_pool, pid);
     if is_ret {
@@ -350,35 +383,10 @@ fn websocket_handling_thread(mut websocket: websocket::Websocket, game_pool: Arc
         game_create(Arc::clone(&game_pool));
         game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     } else {
-        loop {
-            if game_pool.lock().unwrap().players.contains(&pid) {
-                break
-            }
-
-            let ans = websocket_next(websocket);
-            
-            websocket = match ans {
-                None => {
-                  game_exit(game_pool, None, None, None, pid);
-                    return;
-                }
-                Some((websocket, None)) => {
-                    game_exit(game_pool, None, Some(websocket), None, pid);
-                    return;
-                }
-                Some((mut websocket, message)) => {
-                    if let websocket::Message::Text(txt) = message.unwrap() {
-                        if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
-                            match req {
-                                JsonRequest::Ping => {websocket.send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap()).ok();},
-                                _ => ()
-                            }
-                        }
-                    }
-                    websocket
-                }
-            };
-        }
+        websocket = match wait_game(websocket, game_pool.clone(), pid) {
+            Some(websocket) => websocket,
+            None => return,
+        };
         game_pool.lock().unwrap().players_channels.remove(&pid).unwrap()
     };
 
