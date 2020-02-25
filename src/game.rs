@@ -70,6 +70,10 @@ impl Deck {
         self.cards.pop()
     }
 
+    pub fn get_cards(&mut self, n: usize) -> HashSet<Card> {
+        (0..n).filter_map(|_| self.get_card()).collect()
+    }
+
     pub fn size(&self) -> usize {
         self.cards.len()
     }
@@ -144,18 +148,24 @@ impl Game {
                 .collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
             let players_map = players.iter().enumerate().map(|x| (x.1.id, x.0)).collect();
-            let players_next = (0..(players.len()))
-                .map(|x| (x + 1) % players.len())
-                .collect();
-            let players_prev = (0..(players.len()))
-                .map(|x| (x + players.len() - 1) % players.len())
-                .collect();
+
+            let (players_next, players_prev): (Vec<_>, Vec<_>) = (0..(players.len()))
+                .map(|x| {
+                    (
+                        (x + 1) % players.len(),
+                        (x + players.len() - 1) % players.len(),
+                    )
+                })
+                .unzip();
+
             let mut deck = Deck::new();
-            for player in players.iter_mut() {
-                for _ in 0..PLAYERS_CARDS {
-                    player.cards.insert(deck.get_card().unwrap());
-                }
-            }
+            players.iter_mut().for_each(|player| {
+                player.cards = player
+                    .cards
+                    .union(&deck.get_cards(PLAYERS_CARDS))
+                    .copied()
+                    .collect()
+            });
 
             let state = State::Passive;
             let stepping_player = Game::player_min(&players);
@@ -196,13 +206,13 @@ impl Game {
     }
 
     fn player_min(players: &Vec<Player>) -> usize {
-        let mut mini = 0;
-        for i in 1..players.len() {
-            if players[i] < players[mini] {
-                mini = i;
-            }
-        }
-        return mini;
+        players
+            .iter()
+            .enumerate()
+            .map(|x| (x.1, x.0))
+            .min()
+            .unwrap()
+            .1
     }
 
     fn cards_for_winners(&mut self) {
@@ -210,11 +220,9 @@ impl Game {
         self.next_player();
 
         while self.get_stepping_player() != player {
-            if self.get_deck_size() > 0 {
+            if let Some(card) = self.deck.get_card() {
                 let player = self.get_stepping_player();
-                self.players[self.players_map[&player]]
-                    .cards
-                    .insert(self.deck.get_card().unwrap());
+                self.players[self.players_map[&player]].cards.insert(card);
             }
             self.next_player();
         }
@@ -226,11 +234,17 @@ impl Game {
         while self.get_stepping_player() != player || f {
             self.next_player();
             let player = self.get_stepping_player();
-            while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
-                self.players[self.players_map[&player]]
+            let number_of_cards = self.players[self.players_map[&player]].cards.len();
+
+            if number_of_cards < 5 {
+                self.players[self.players_map[&player]].cards = self.players
+                    [self.players_map[&player]]
                     .cards
-                    .insert(self.deck.get_card().unwrap());
+                    .union(&self.deck.get_cards(5 - number_of_cards))
+                    .cloned()
+                    .collect();
             }
+
             f = false;
         }
     }
@@ -275,7 +289,7 @@ impl GameTrait for Game {
                                     self.players[player].cards = self.players[player]
                                         .cards
                                         .difference(&cards)
-                                        .map(|x| *x)
+                                        .copied()
                                         .collect();
                                     self.state = State::Active(Board { cards, comb });
 
@@ -320,13 +334,13 @@ impl GameTrait for Game {
                                                 self.players[player].cards = self.players[player]
                                                     .cards
                                                     .difference(&comb)
-                                                    .map(|x| *x)
+                                                    .copied()
                                                     .collect();
                                                 let new_board = Board {
                                                     cards: board
                                                         .cards
                                                         .union(&comb)
-                                                        .map(|x| *x)
+                                                        .copied()
                                                         .collect(),
                                                     comb: new_comb,
                                                 };
@@ -356,7 +370,7 @@ impl GameTrait for Game {
                             self.players[player].cards = self.players[player]
                                 .cards
                                 .union(&board.comb.cards)
-                                .map(|x| *x)
+                                .copied()
                                 .collect();
                             self.get_cards_for_players();
                             self.cards_for_winners();

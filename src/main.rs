@@ -324,7 +324,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     let players = game_pool
         .waiting_players
         .iter()
-        .map(|x| *x)
+        .copied()
         .collect::<Vec<_>>();
     game_pool.counter += 1;
     let counter = game_pool.counter;
