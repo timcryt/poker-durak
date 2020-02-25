@@ -1,5 +1,5 @@
-use std::vec;
 use std::collections::HashSet;
+use std::vec;
 
 mod test;
 
@@ -27,50 +27,61 @@ pub struct Comb {
     rank: CombRank,
 }
 
-impl PartialEq for Comb {fn eq(&self, other: &Comb) -> bool {self.rank == other.rank}}
+impl PartialEq for Comb {
+    fn eq(&self, other: &Comb) -> bool {
+        self.rank == other.rank
+    }
+}
 impl Eq for Comb {}
-impl PartialOrd for Comb {fn partial_cmp(&self, other: &Comb) -> Option<std::cmp::Ordering> {Some(self.rank.cmp(&other.rank))}}
-impl Ord for Comb {fn cmp(&self, other: &Comb) -> std::cmp::Ordering {self.rank.cmp(&other.rank)}}
-
+impl PartialOrd for Comb {
+    fn partial_cmp(&self, other: &Comb) -> Option<std::cmp::Ordering> {
+        Some(self.rank.cmp(&other.rank))
+    }
+}
+impl Ord for Comb {
+    fn cmp(&self, other: &Comb) -> std::cmp::Ordering {
+        self.rank.cmp(&other.rank)
+    }
+}
 
 impl Comb {
     pub fn new(cards: HashSet<Card>) -> Option<Comb> {
         let rank = Comb::get_rank(&cards);
         match rank {
-            Some(rank) => Some(Comb {cards, rank}),
-            None => None
+            Some(rank) => Some(Comb { cards, rank }),
+            None => None,
         }
     }
 
     fn get_rank(cards: &HashSet<Card>) -> Option<CombRank> {
         match Comb::is_straight_flush(cards) {
             Some(x) => Some(CombRank::StraightFlush(x)),
-            None => 
-        match Comb::is_four_of_a_kind(cards) {
-            Some(x) => Some(CombRank::FourOfAKind(x)),
-            None =>
-        match Comb::is_full_house(cards) {
-            Some(x) => Some(CombRank::FullHouse(x)),
-            None =>
-        match Comb::is_flush(cards) {
-            Some(x) => Some(CombRank::Flush(x)),
-            None =>
-        match Comb::is_straight(cards) {
-            Some(x) => Some(CombRank::Straight(x)),
-            None =>
-        match Comb::is_set(cards) {
-            Some(x) => Some(CombRank::Set(x)),
-            None =>
-        match Comb::is_two_pairs(cards) {
-            Some(x) => Some(CombRank::TwoPairs(x)),
-            None =>
-        match Comb::is_pair(cards) {
-            Some(x) => Some(CombRank::Pair(x)),
-            None =>
-        match Comb::is_highest_card(cards) {
-            Some(x) => Some(CombRank::HighestCard(x)),
-            None => None
-        }}}}}}}}}
+            None => match Comb::is_four_of_a_kind(cards) {
+                Some(x) => Some(CombRank::FourOfAKind(x)),
+                None => match Comb::is_full_house(cards) {
+                    Some(x) => Some(CombRank::FullHouse(x)),
+                    None => match Comb::is_flush(cards) {
+                        Some(x) => Some(CombRank::Flush(x)),
+                        None => match Comb::is_straight(cards) {
+                            Some(x) => Some(CombRank::Straight(x)),
+                            None => match Comb::is_set(cards) {
+                                Some(x) => Some(CombRank::Set(x)),
+                                None => match Comb::is_two_pairs(cards) {
+                                    Some(x) => Some(CombRank::TwoPairs(x)),
+                                    None => match Comb::is_pair(cards) {
+                                        Some(x) => Some(CombRank::Pair(x)),
+                                        None => match Comb::is_highest_card(cards) {
+                                            Some(x) => Some(CombRank::HighestCard(x)),
+                                            None => None,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }
     }
 
     fn is_straight_flush(cards: &HashSet<Card>) -> Option<CardRank> {
@@ -92,29 +103,32 @@ impl Comb {
                         c += 1;
                         if c == 5 {
                             m = match m {
-                                None =>
-                                    Some(CARD_RANKS[j - 1]),
-                                Some(x) =>
+                                None => Some(CARD_RANKS[j - 1]),
+                                Some(x) => {
                                     if x < CARD_RANKS[j - 1] {
                                         Some(CARD_RANKS[j - 1])
                                     } else {
                                         Some(x)
                                     }
+                                }
                             }
                         }
                     } else {
                         c = 0
                     }
-
                 }
-            }       
-            m    
+            }
+            m
         } else {
             None
         }
     }
 
-    fn is_xy_of_a_kind(cards: &HashSet<Card>, x: usize, y: usize) -> Option<((CardRank, CardRank), usize)> {
+    fn is_xy_of_a_kind(
+        cards: &HashSet<Card>,
+        x: usize,
+        y: usize,
+    ) -> Option<((CardRank, CardRank), usize)> {
         if cards.len() == x + y {
             let mut m = None;
             for i in CARD_RANKS.iter() {
@@ -126,18 +140,18 @@ impl Comb {
                                 ci += 1
                             } else if k.rank == *j {
                                 cj += 1
-                            } 
+                            }
                             if (ci >= x && cj >= y) || (ci >= y && cj >= x) {
                                 let t = (*j, *i);
                                 m = match m {
-                                    None =>
-                                        Some((t, cj)),
-                                    Some(x) =>
+                                    None => Some((t, cj)),
+                                    Some(x) => {
                                         if x.0 < t {
                                             Some((t, cj))
                                         } else {
                                             Some(x)
                                         }
+                                    }
                                 }
                             }
                         }
@@ -159,21 +173,20 @@ impl Comb {
                     if k.rank == *i {
                         c += 1
                     }
-                    if c >= x  {
+                    if c >= x {
                         m = match m {
-                            None =>
-                                Some(*i),
-                                Some(x) => {
-                                    if x < *i {
-                                        Some(*i)
-                                    } else {
-                                        Some(x)
-                                    }
+                            None => Some(*i),
+                            Some(x) => {
+                                if x < *i {
+                                    Some(*i)
+                                } else {
+                                    Some(x)
                                 }
                             }
                         }
                     }
                 }
+            }
             m
         } else {
             None
@@ -183,7 +196,6 @@ impl Comb {
     fn is_four_of_a_kind(cards: &HashSet<Card>) -> Option<CardRank> {
         Comb::is_x_of_a_kind(cards, 4)
     }
-
 
     fn is_full_house(cards: &HashSet<Card>) -> Option<((CardRank, CardRank), usize)> {
         Comb::is_xy_of_a_kind(cards, 3, 2)
@@ -214,19 +226,19 @@ impl Comb {
                     if j.suit == *i {
                         c += 1;
                     }
-                } 
+                }
                 if c >= 5 {
                     for j in cards {
                         if j.suit == *i {
                             m = match m {
-                                None =>
-                                    Some(j.rank),
-                                Some(x) =>
+                                None => Some(j.rank),
+                                Some(x) => {
                                     if x < j.rank {
                                         Some(j.rank)
                                     } else {
                                         Some(x)
                                     }
+                                }
                             }
                         }
                     }
@@ -265,4 +277,3 @@ impl Comb {
         }
     }
 }
-

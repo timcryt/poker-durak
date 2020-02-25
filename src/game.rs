@@ -1,10 +1,8 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 use rand::{thread_rng, Rng};
 
-
 use serde::{Deserialize, Serialize};
-
 
 use crate::card::*;
 use crate::comb::*;
@@ -57,18 +55,20 @@ impl Deck {
         let mut cards = Vec::<Card>::new();
         for rank in CARD_RANKS.iter() {
             for suit in CARD_SUITS.iter() {
-                cards.push(Card {rank: *rank, suit: *suit});
+                cards.push(Card {
+                    rank: *rank,
+                    suit: *suit,
+                });
             }
         }
         thread_rng().shuffle(&mut cards);
 
-        Deck {cards}
+        Deck { cards }
     }
 
     pub fn get_card(&mut self) -> Option<Card> {
         self.cards.pop()
     }
-
 
     pub fn size(&self) -> usize {
         self.cards.len()
@@ -107,11 +107,11 @@ pub enum StepError {
 impl std::fmt::Display for StepError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            StepError::InvalidPID      => write!(f, "Вы не можете соверщить шаг сейчас"),
+            StepError::InvalidPID => write!(f, "Вы не можете соверщить шаг сейчас"),
             StepError::InvalidStepType => write!(f, "Вы не имеете права делать данный тип шага"),
-            StepError::InvalidCards    => write!(f, "У вас нет карт, чтобы сделать этот шаг"),
-            StepError::InvalidComb     => write!(f, "Ваши карты не являются покерной комбинацией"),
-            StepError::WeakComb        => write!(f, "Ваша комбинация слишком слаба")
+            StepError::InvalidCards => write!(f, "У вас нет карт, чтобы сделать этот шаг"),
+            StepError::InvalidComb => write!(f, "Ваши карты не являются покерной комбинацией"),
+            StepError::WeakComb => write!(f, "Ваша комбинация слишком слаба"),
         }
     }
 }
@@ -119,11 +119,11 @@ impl std::fmt::Display for StepError {
 impl std::error::Error for StepError {
     fn description(&self) -> &str {
         match &self {
-            StepError::InvalidPID      => "Вы не можете совершить шаг сейчас",
+            StepError::InvalidPID => "Вы не можете совершить шаг сейчас",
             StepError::InvalidStepType => "Вы не имеете права делать данный тип шага",
-            StepError::InvalidCards    => "У вас нет карт, чтобы сделать этот шаг",
-            StepError::InvalidComb     => "Ваши карты не являются покерной комбинацией",
-            StepError::WeakComb        => "Ваша комбинация слишком слаба"
+            StepError::InvalidCards => "У вас нет карт, чтобы сделать этот шаг",
+            StepError::InvalidComb => "Ваши карты не являются покерной комбинацией",
+            StepError::WeakComb => "Ваша комбинация слишком слаба",
         }
     }
 
@@ -135,11 +135,21 @@ impl std::error::Error for StepError {
 impl Game {
     pub fn new(players_ids: Vec<PID>) -> Option<Game> {
         if players_ids.len() < NUMBER_OF_CARDS / PLAYERS_CARDS {
-            let mut players = players_ids.iter().map(|id| Player {id: *id, cards: HashSet::<Card>::new()}).collect::<Vec<_>>();
+            let mut players = players_ids
+                .iter()
+                .map(|id| Player {
+                    id: *id,
+                    cards: HashSet::<Card>::new(),
+                })
+                .collect::<Vec<_>>();
             thread_rng().shuffle(&mut players);
             let players_map = players.iter().enumerate().map(|x| (x.1.id, x.0)).collect();
-            let players_next = (0..(players.len())).map(|x| (x + 1) % players.len()).collect();
-            let players_prev = (0..(players.len())).map(|x| (x + players.len() - 1) % players.len()).collect();
+            let players_next = (0..(players.len()))
+                .map(|x| (x + 1) % players.len())
+                .collect();
+            let players_prev = (0..(players.len()))
+                .map(|x| (x + players.len() - 1) % players.len())
+                .collect();
             let mut deck = Deck::new();
             for player in players.iter_mut() {
                 for _ in 0..PLAYERS_CARDS {
@@ -149,11 +159,20 @@ impl Game {
 
             let state = State::Passive;
             let stepping_player = Game::player_min(&players);
-            
-            Some(Game {players, stepping_player, players_prev, players_next, players_map, winner: None, deck, state})
+
+            Some(Game {
+                players,
+                stepping_player,
+                players_prev,
+                players_next,
+                players_map,
+                winner: None,
+                deck,
+                state,
+            })
         } else {
             None
-        }   
+        }
     }
 
     fn win_player(&mut self, pid: PID) {
@@ -165,7 +184,7 @@ impl Game {
 
         self.players_next[self.players_prev[player]] = self.players_next[player];
         self.players_prev[self.players_next[player]] = self.players_prev[player];
-        self.players_next[player] = player; 
+        self.players_next[player] = player;
         if self.get_stepping_player() == pid {
             self.next_player();
         }
@@ -190,26 +209,30 @@ impl Game {
         let player = self.get_stepping_player();
         self.next_player();
 
-        while  self.get_stepping_player() != player {
+        while self.get_stepping_player() != player {
             if self.get_deck_size() > 0 {
                 let player = self.get_stepping_player();
-                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
+                self.players[self.players_map[&player]]
+                    .cards
+                    .insert(self.deck.get_card().unwrap());
             }
             self.next_player();
         }
     }
-  
-    fn get_cards_for_players(&mut self) {  
+
+    fn get_cards_for_players(&mut self) {
         let player = self.get_stepping_player();
         let mut f = true;
         while self.get_stepping_player() != player || f {
             self.next_player();
             let player = self.get_stepping_player();
             while self.players[self.players_map[&player]].cards.len() < 5 && self.deck.size() > 0 {
-                self.players[self.players_map[&player]].cards.insert(self.deck.get_card().unwrap());
-            }       
+                self.players[self.players_map[&player]]
+                    .cards
+                    .insert(self.deck.get_card().unwrap());
+            }
             f = false;
-        }    
+        }
     }
 }
 
@@ -232,61 +255,86 @@ impl GameTrait for Game {
             Err(StepError::InvalidPID)
         } else {
             match self.state.clone() {
-                State::Passive => {
-                    match step {
-                        Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
-                        Step::GetCard => {
-                            if self.deck.size() > 0 {
-                                self.players[player].cards.insert(self.deck.get_card().unwrap());  
-                                self.next_player();
-                                Ok(())
-                            } else {
-                                Err(StepError::InvalidStepType)
-                            }
-                        }
-                        Step::GiveComb(cards) => {
-                            if cards.is_subset(&self.players[player].cards) {
-                                match Comb::new(cards.clone()) {
-                                    Some(comb) => {
-                                        self.players[player].cards = self.players[player].cards.difference(&cards).map(|x| *x).collect();
-                                        self.state = State::Active(Board {cards, comb});
-                                        
-                                        if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
-                                            self.winner = Some(player);
-                                            self.win_player(pid);
-                                        } else {
-                                            self.next_player();
-                                        }
-                                        
-                                        Ok(())
-                                    },
-                                    None => Err(StepError::InvalidCards)
-                                }
-                            } else {
-                                Err(StepError::InvalidCards)
-                            }
+                State::Passive => match step {
+                    Step::GetComb | Step::TransComb(_) => Err(StepError::InvalidStepType),
+                    Step::GetCard => {
+                        if self.deck.size() > 0 {
+                            self.players[player]
+                                .cards
+                                .insert(self.deck.get_card().unwrap());
+                            self.next_player();
+                            Ok(())
+                        } else {
+                            Err(StepError::InvalidStepType)
                         }
                     }
-                }
+                    Step::GiveComb(cards) => {
+                        if cards.is_subset(&self.players[player].cards) {
+                            match Comb::new(cards.clone()) {
+                                Some(comb) => {
+                                    self.players[player].cards = self.players[player]
+                                        .cards
+                                        .difference(&cards)
+                                        .map(|x| *x)
+                                        .collect();
+                                    self.state = State::Active(Board { cards, comb });
+
+                                    if self.deck.size() == 0
+                                        && self.players[player].cards.len() == 0
+                                    {
+                                        self.winner = Some(player);
+                                        self.win_player(pid);
+                                    } else {
+                                        self.next_player();
+                                    }
+
+                                    Ok(())
+                                }
+                                None => Err(StepError::InvalidCards),
+                            }
+                        } else {
+                            Err(StepError::InvalidCards)
+                        }
+                    }
+                },
                 State::Active(board) => {
                     let pid = self.players[player].id;
                     match step {
                         Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
                         Step::TransComb(comb) => {
-                            let a = self.players[player].cards.intersection(&comb).collect::<Vec<_>>().len();
+                            let a = self.players[player]
+                                .cards
+                                .intersection(&comb)
+                                .collect::<Vec<_>>()
+                                .len();
                             if a > 0 {
-                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len() < comb.len() {
+                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len()
+                                    < comb.len()
+                                {
                                     Err(StepError::InvalidCards)
                                 } else {
                                     match Comb::new(comb.clone()) {
                                         None => Err(StepError::InvalidComb),
                                         Some(new_comb) => {
                                             if new_comb > board.comb {
-                                                self.players[player].cards = self.players[player].cards.difference(&comb).map(|x| *x).collect();
-                                                let new_board = Board {cards: board.cards.union(&comb).map(|x| *x).collect(), comb: new_comb};
+                                                self.players[player].cards = self.players[player]
+                                                    .cards
+                                                    .difference(&comb)
+                                                    .map(|x| *x)
+                                                    .collect();
+                                                let new_board = Board {
+                                                    cards: board
+                                                        .cards
+                                                        .union(&comb)
+                                                        .map(|x| *x)
+                                                        .collect(),
+                                                    comb: new_comb,
+                                                };
                                                 self.state = State::Active(new_board);
-                                                
-                                                if self.deck.size() == 0 && self.players[player].cards.len() == 0 {
+
+                                                if self.deck.size() == 0
+                                                    && self.players[player].cards.len() == 0
+                                                {
                                                     self.winner = Some(player);
                                                     self.win_player(pid);
                                                 } else {
@@ -296,7 +344,7 @@ impl GameTrait for Game {
                                                 Ok(())
                                             } else {
                                                 Err(StepError::WeakComb)
-                                            } 
+                                            }
                                         }
                                     }
                                 }
@@ -305,7 +353,11 @@ impl GameTrait for Game {
                             }
                         }
                         Step::GetComb => {
-                            self.players[player].cards = self.players[player].cards.union(&board.comb.cards).map(|x| *x).collect();
+                            self.players[player].cards = self.players[player]
+                                .cards
+                                .union(&board.comb.cards)
+                                .map(|x| *x)
+                                .collect();
                             self.get_cards_for_players();
                             self.cards_for_winners();
                             self.state = State::Passive;
@@ -320,8 +372,11 @@ impl GameTrait for Game {
 
     fn players_decks(&self) -> Vec<usize> {
         (1..self.players.len())
-            .map(|i| 
-                self.players[(self.stepping_player + i) % self.players.len()].cards.len())
+            .map(|i| {
+                self.players[(self.stepping_player + i) % self.players.len()]
+                    .cards
+                    .len()
+            })
             .collect()
     }
 
@@ -334,7 +389,7 @@ impl GameTrait for Game {
 
         self.players_next[self.players_prev[player]] = self.players_next[player];
         self.players_prev[self.players_next[player]] = self.players_prev[player];
-        self.players_next[player] = player; 
+        self.players_next[player] = player;
         if self.get_stepping_player() == pid {
             self.next_player();
         }
@@ -368,12 +423,12 @@ impl GameTrait for Game {
     }
 }
 
-pub struct GameChannelServer (
+pub struct GameChannelServer(
     std::sync::mpsc::Receiver<GameRequest>,
     std::sync::mpsc::Sender<GameResponse>,
 );
 
-pub struct GameChannelClient (
+pub struct GameChannelClient(
     std::sync::mpsc::Sender<GameRequest>,
     std::sync::mpsc::Receiver<GameResponse>,
 );
@@ -388,7 +443,7 @@ enum GameRequest {
     IsPlayerKicked(PID),
     GetGameWinner,
     GetState,
-    Exit(PID)
+    Exit(PID),
 }
 
 enum GameResponse {
@@ -408,7 +463,7 @@ impl GameChannelClient {
         self.0.send(GameRequest::Exit(pid)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::Exited(f) => f,
-            _ => panic!()
+            _ => panic!(),
         }
     }
 }
@@ -418,7 +473,7 @@ impl GameTrait for GameChannelClient {
         self.0.send(GameRequest::MakeStep(pid, step)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::YouMadeStep(res) => res,
-            _ => panic!(), 
+            _ => panic!(),
         }
     }
 
@@ -429,7 +484,6 @@ impl GameTrait for GameChannelClient {
             _ => panic!(),
         }
     }
-
 
     fn kick_player(&mut self, pid: PID) {
         self.0.send(GameRequest::KickPlayer(pid)).unwrap();
@@ -498,26 +552,34 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
                 loop {
                     match (player.1).0.try_recv() {
                         Ok(req) => (match req {
-                            GameRequest::MakeStep(pid, step) =>
-                                Some(GameResponse::YouMadeStep(game.make_step(pid, step))),
-                            GameRequest::GetPlayersDecks => 
-                                Some(GameResponse::PlayersDecks(game.players_decks())),
+                            GameRequest::MakeStep(pid, step) => {
+                                Some(GameResponse::YouMadeStep(game.make_step(pid, step)))
+                            }
+                            GameRequest::GetPlayersDecks => {
+                                Some(GameResponse::PlayersDecks(game.players_decks()))
+                            }
                             GameRequest::KickPlayer(pid) => {
                                 game.kick_player(pid);
                                 None
                             }
-                            GameRequest::GetSteppingPlayer =>
-                                Some(GameResponse::SteppingPlayer(game.get_stepping_player())),
-                            GameRequest::GetPlayerCards(pid) => 
-                                Some(GameResponse::YourCards(game.get_player_cards(pid))),
-                            GameRequest::GetDeckSize => 
-                                Some(GameResponse::DeckSize(game.get_deck_size())),
-                            GameRequest::IsPlayerKicked(pid) =>
-                                Some(GameResponse::PlayerKicked(game.is_player_kicked(pid))),
-                            GameRequest::GetGameWinner =>
-                                Some(GameResponse::GameWinner(game.game_winner())),
-                            GameRequest::GetState =>
-                                Some(GameResponse::GameState(game.get_state_cards())),
+                            GameRequest::GetSteppingPlayer => {
+                                Some(GameResponse::SteppingPlayer(game.get_stepping_player()))
+                            }
+                            GameRequest::GetPlayerCards(pid) => {
+                                Some(GameResponse::YourCards(game.get_player_cards(pid)))
+                            }
+                            GameRequest::GetDeckSize => {
+                                Some(GameResponse::DeckSize(game.get_deck_size()))
+                            }
+                            GameRequest::IsPlayerKicked(pid) => {
+                                Some(GameResponse::PlayerKicked(game.is_player_kicked(pid)))
+                            }
+                            GameRequest::GetGameWinner => {
+                                Some(GameResponse::GameWinner(game.game_winner()))
+                            }
+                            GameRequest::GetState => {
+                                Some(GameResponse::GameState(game.get_state_cards()))
+                            }
                             GameRequest::Exit(pid) => {
                                 game.kick_player(pid);
                                 playing[player.0] = false;
@@ -525,20 +587,21 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
                                 if count == 0 {
                                     (player.1).1.send(GameResponse::Exited(true)).unwrap();
                                     break 'outer;
-                                }  
-                                Some(GameResponse::Exited(false))                         
+                                }
+                                Some(GameResponse::Exited(false))
                             }
-                        }).map_or((), |resp| (player.1).1.send(resp).unwrap()),
+                        })
+                        .map_or((), |resp| (player.1).1.send(resp).unwrap()),
                         Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                             playing[player.0] = false;
                             count -= 1;
                             if count == 0 {
                                 break 'outer;
                             }
-                        },
+                        }
                         Err(std::sync::mpsc::TryRecvError::Empty) => {
                             break;
-                        },
+                        }
                     }
                 }
             }

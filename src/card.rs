@@ -1,7 +1,7 @@
-use serde::de::{Deserializer, Visitor};
 use serde::de;
-use serde::ser::Serializer;
+use serde::de::{Deserializer, Visitor};
 use serde::ser::SerializeTuple;
+use serde::ser::Serializer;
 use std::fmt;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug)]
@@ -9,8 +9,8 @@ pub enum CardRank {
     Two,
     Three,
     Four,
-    Five, 
-    Six, 
+    Five,
+    Six,
     Seven,
     Eight,
     Nine,
@@ -27,7 +27,9 @@ impl<'de> serde::de::Deserialize<'de> for CardRank {
         D: Deserializer<'de>,
     {
         struct CardRankVisitor;
-        const FIELDS: &'static [&'static str] = &["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+        const FIELDS: &'static [&'static str] = &[
+            "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A",
+        ];
 
         impl<'de> Visitor<'de> for CardRankVisitor {
             type Value = CardRank;
@@ -41,19 +43,19 @@ impl<'de> serde::de::Deserialize<'de> for CardRank {
                 E: de::Error,
             {
                 match value {
-                    "2"  => Ok(CardRank::Two),
-                    "3"  => Ok(CardRank::Three),
-                    "4"  => Ok(CardRank::Four),
-                    "5"  => Ok(CardRank::Five),
-                    "6"  => Ok(CardRank::Six),
-                    "7"  => Ok(CardRank::Seven),
-                    "8"  => Ok(CardRank::Eight),
-                    "9"  => Ok(CardRank::Nine),
+                    "2" => Ok(CardRank::Two),
+                    "3" => Ok(CardRank::Three),
+                    "4" => Ok(CardRank::Four),
+                    "5" => Ok(CardRank::Five),
+                    "6" => Ok(CardRank::Six),
+                    "7" => Ok(CardRank::Seven),
+                    "8" => Ok(CardRank::Eight),
+                    "9" => Ok(CardRank::Nine),
                     "10" => Ok(CardRank::Ten),
-                    "J"  => Ok(CardRank::Jack),
-                    "Q"  => Ok(CardRank::Queen),
-                    "K"  => Ok(CardRank::King),
-                    "A"  => Ok(CardRank::Ace),
+                    "J" => Ok(CardRank::Jack),
+                    "Q" => Ok(CardRank::Queen),
+                    "K" => Ok(CardRank::King),
+                    "A" => Ok(CardRank::Ace),
                     _ => Err(de::Error::unknown_field(value, FIELDS)),
                 }
             }
@@ -69,20 +71,19 @@ impl serde::ser::Serialize for CardRank {
         S: Serializer,
     {
         match *self {
-            CardRank::Two   => serializer.serialize_unit_variant("CardRank", 0 , "2"),
-            CardRank::Three => serializer.serialize_unit_variant("CardRank", 1 , "3"),
-            CardRank::Four  => serializer.serialize_unit_variant("CardRank", 2 , "4"),
-            CardRank::Five  => serializer.serialize_unit_variant("CardRank", 3 , "5"),
-            CardRank::Six   => serializer.serialize_unit_variant("CardRank", 4 , "6"),
-            CardRank::Seven => serializer.serialize_unit_variant("CardRank", 5 , "7"),
-            CardRank::Eight => serializer.serialize_unit_variant("CardRank", 6 , "8"),
-            CardRank::Nine  => serializer.serialize_unit_variant("CardRank", 7 , "9"),
-            CardRank::Ten   => serializer.serialize_unit_variant("CardRank", 8 , "10"),
-            CardRank::Jack  => serializer.serialize_unit_variant("CardRank", 9 , "J"),
+            CardRank::Two => serializer.serialize_unit_variant("CardRank", 0, "2"),
+            CardRank::Three => serializer.serialize_unit_variant("CardRank", 1, "3"),
+            CardRank::Four => serializer.serialize_unit_variant("CardRank", 2, "4"),
+            CardRank::Five => serializer.serialize_unit_variant("CardRank", 3, "5"),
+            CardRank::Six => serializer.serialize_unit_variant("CardRank", 4, "6"),
+            CardRank::Seven => serializer.serialize_unit_variant("CardRank", 5, "7"),
+            CardRank::Eight => serializer.serialize_unit_variant("CardRank", 6, "8"),
+            CardRank::Nine => serializer.serialize_unit_variant("CardRank", 7, "9"),
+            CardRank::Ten => serializer.serialize_unit_variant("CardRank", 8, "10"),
+            CardRank::Jack => serializer.serialize_unit_variant("CardRank", 9, "J"),
             CardRank::Queen => serializer.serialize_unit_variant("CardRank", 10, "Q"),
-            CardRank::King  => serializer.serialize_unit_variant("CardRank", 11, "K"),
-            CardRank::Ace   => serializer.serialize_unit_variant("CardRank", 12, "A"),
-            
+            CardRank::King => serializer.serialize_unit_variant("CardRank", 11, "K"),
+            CardRank::Ace => serializer.serialize_unit_variant("CardRank", 12, "A"),
         }
     }
 }
@@ -100,7 +101,7 @@ pub const CARD_RANKS: [CardRank; 13] = [
     CardRank::Jack,
     CardRank::Queen,
     CardRank::King,
-    CardRank::Ace
+    CardRank::Ace,
 ];
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
@@ -150,15 +151,20 @@ impl serde::ser::Serialize for CardSuit {
         S: serde::ser::Serializer,
     {
         match *self {
-            CardSuit::Spades   => serializer.serialize_unit_variant("CardSuit", 0, "♠"),
-            CardSuit::Clubs    => serializer.serialize_unit_variant("CardSuit", 1, "♣"),
+            CardSuit::Spades => serializer.serialize_unit_variant("CardSuit", 0, "♠"),
+            CardSuit::Clubs => serializer.serialize_unit_variant("CardSuit", 1, "♣"),
             CardSuit::Diamonds => serializer.serialize_unit_variant("CardSuit", 2, "♦"),
-            CardSuit::Hearts   => serializer.serialize_unit_variant("CardSuit", 3, "♥"),
+            CardSuit::Hearts => serializer.serialize_unit_variant("CardSuit", 3, "♥"),
         }
     }
 }
 
-pub const CARD_SUITS: [CardSuit; 4] = [CardSuit::Spades, CardSuit::Clubs, CardSuit::Diamonds, CardSuit::Hearts];
+pub const CARD_SUITS: [CardSuit; 4] = [
+    CardSuit::Spades,
+    CardSuit::Clubs,
+    CardSuit::Diamonds,
+    CardSuit::Hearts,
+];
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct Card {
@@ -198,15 +204,19 @@ impl<'de> serde::de::Deserialize<'de> for Card {
             {
                 let rank = match seq.next_element() {
                     Ok(Some(rank)) => rank,
-                    _ => {return Err(serde::de::Error::missing_field("rank"));},
+                    _ => {
+                        return Err(serde::de::Error::missing_field("rank"));
+                    }
                 };
 
                 let suit = match seq.next_element() {
                     Ok(Some(suit)) => suit,
-                    _ => {return Err(serde::de::Error::missing_field("suit"));}
+                    _ => {
+                        return Err(serde::de::Error::missing_field("suit"));
+                    }
                 };
 
-                Ok(Card {rank, suit})
+                Ok(Card { rank, suit })
             }
         }
 
@@ -218,9 +228,17 @@ impl<'de> serde::de::Deserialize<'de> for Card {
 fn card_deserialize_test() {
     assert_eq!(
         serde_json::from_str::<Card>(
-            &serde_json::to_string(&Card {rank: CardRank::Queen, suit: CardSuit::Spades}).unwrap()
-        ).unwrap(),
-        Card {rank: CardRank::Queen, suit: CardSuit::Spades}
+            &serde_json::to_string(&Card {
+                rank: CardRank::Queen,
+                suit: CardSuit::Spades
+            })
+            .unwrap()
+        )
+        .unwrap(),
+        Card {
+            rank: CardRank::Queen,
+            suit: CardSuit::Spades
+        }
     );
 }
 
