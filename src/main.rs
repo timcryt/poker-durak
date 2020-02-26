@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
@@ -74,7 +77,7 @@ fn data_by_url(url: &str) -> &'static str {
     }
 }
 
-fn router<'a>(url: &'a str) -> &'a str {
+fn router(url: &str) -> &str {
     match url {
         "/" => "/index.html",
         "/stat" => "/stat.html",
@@ -82,6 +85,20 @@ fn router<'a>(url: &'a str) -> &'a str {
         "/winner" => "/winner.html",
         "/loser" => "/loser.html",
         url => url,
+    }
+}
+
+fn set_cookies(request: &rouille::Request, resp: Response) -> Response {
+    match get_sid(request) {
+        Some(sid) => {
+            info!("SID {}", sid);
+            resp
+        }
+        None => {
+            let sid = thread_rng().gen::<usize>();
+            info!("SID NEW {}", sid);
+            resp.with_additional_header("Set-Cookie", format!("sid={}; HttpOnly", sid))
+        }
     }
 }
 
@@ -111,19 +128,8 @@ fn main() {
         router!(request,
             (GET) (/game) => {
                 info!("GET /game");
-                let mut resp = Response::from_file("text/html", File::open("static/game.html").unwrap());
-                match get_sid(&request) {
-                    Some(sid) => {
-                        info!("SID {}", sid);
-                    }
-                    None => {
-                        let sid = thread_rng().gen::<usize>();
-                        info!("SID NEW {}", sid);
-                        resp = resp.with_additional_header("Set-Cookie", format!("sid={}; HttpOnly", sid));
-                    }
-                }
-
-                apply(request, resp)
+                let resp = Response::from_file("text/html", File::open("static/game.html").unwrap());
+                apply(request, set_cookies(&request, resp))
             },
 
             (GET) (/ws) => {
@@ -194,25 +200,20 @@ fn main() {
 fn websocket_next(
     mut websocket: websocket::Websocket,
 ) -> Option<(websocket::Websocket, Option<websocket::Message>)> {
-    let run_flag = Arc::new(Mutex::new(false));
+    let run_flag = Arc::new(AtomicBool::new(false));
     let run_flag_clone = Arc::clone(&run_flag);
 
     let child = thread::spawn(move || {
         let msg = websocket.next();
-        let mut run_flag = run_flag_clone.lock().unwrap();
-        *run_flag = true;
+        run_flag_clone.store(false, Ordering::Relaxed);
         Some((websocket, msg))
     });
 
     let now = SystemTime::now();
     sleep(Duration::from_millis(WS_PREWAIT_MILLIS));
     while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL_SECS) {
-        let run_flag = *Arc::clone(&run_flag).lock().unwrap();
-        match run_flag {
-            true => {
-                return child.join().ok().flatten();
-            }
-            false => (),
+        if run_flag.load(Ordering::Relaxed) {
+            return child.join().ok().flatten();
         }
         sleep(Duration::from_millis(WS_UPDATE_MILLIS));
     }
@@ -221,6 +222,7 @@ fn websocket_next(
 }
 
 #[derive(Serialize)]
+#[allow(clippy::large_enum_variant)]
 enum JsonResponse {
     Pong,
     ID(usize),
@@ -297,12 +299,10 @@ fn game_exit(
                             .send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap())
                             .ok();
                     };
-                } else {
-                    if let Some(mut websocket) = websocket {
-                        websocket
-                            .send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap())
-                            .ok();
-                    };
+                } else if let Some(mut websocket) = websocket {
+                    websocket
+                        .send_text(&serde_json::to_string(&JsonResponse::GameLoser).unwrap())
+                        .ok();
                 }
 
                 if game.exit(pid) {
@@ -374,13 +374,10 @@ fn wait_game(
             Some((mut websocket, message)) => {
                 if let websocket::Message::Text(txt) = message.unwrap() {
                     if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
-                        match req {
-                            JsonRequest::Ping => {
-                                websocket
-                                    .send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap())
-                                    .ok();
-                            }
-                            _ => (),
+                        if let JsonRequest::Ping = req {
+                            websocket
+                                .send_text(&serde_json::to_string(&JsonResponse::Pong).unwrap())
+                                .ok();
                         }
                     }
                 }
@@ -499,7 +496,7 @@ fn websocket_handling_thread(
                         break;
                     }
 
-                    if let Some(_) = game.game_winner() {
+                    if game.game_winner().is_some() {
                         ws_end_success = true;
                         websocket = Some(ws);
                         break;

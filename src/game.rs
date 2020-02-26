@@ -205,7 +205,7 @@ impl Game {
         self.stepping_player = self.players_next[player];
     }
 
-    fn player_min(players: &Vec<Player>) -> usize {
+    fn player_min(players: &[Player]) -> usize {
         players
             .iter()
             .enumerate()
@@ -294,7 +294,7 @@ impl GameTrait for Game {
                                     self.state = State::Active(Board { cards, comb });
 
                                     if self.deck.size() == 0
-                                        && self.players[player].cards.len() == 0
+                                        && self.players[player].cards.is_empty()
                                     {
                                         self.winner = Some(player);
                                         self.win_player(pid);
@@ -316,15 +316,9 @@ impl GameTrait for Game {
                     match step {
                         Step::GetCard | Step::GiveComb(_) => Err(StepError::InvalidStepType),
                         Step::TransComb(comb) => {
-                            let a = self.players[player]
-                                .cards
-                                .intersection(&comb)
-                                .collect::<Vec<_>>()
-                                .len();
+                            let a = self.players[player].cards.intersection(&comb).count();
                             if a > 0 {
-                                if a + board.cards.intersection(&comb).collect::<Vec<_>>().len()
-                                    < comb.len()
-                                {
+                                if a + board.cards.intersection(&comb).count() < comb.len() {
                                     Err(StepError::InvalidCards)
                                 } else {
                                     match Comb::new(comb.clone()) {
@@ -347,7 +341,7 @@ impl GameTrait for Game {
                                                 self.state = State::Active(new_board);
 
                                                 if self.deck.size() == 0
-                                                    && self.players[player].cards.len() == 0
+                                                    && self.players[player].cards.is_empty()
                                                 {
                                                     self.winner = Some(player);
                                                     self.win_player(pid);

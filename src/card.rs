@@ -27,7 +27,7 @@ impl<'de> serde::de::Deserialize<'de> for CardRank {
         D: Deserializer<'de>,
     {
         struct CardRankVisitor;
-        const FIELDS: &'static [&'static str] = &[
+        const FIELDS: &[&str] = &[
             "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A",
         ];
 
@@ -118,7 +118,7 @@ impl<'de> serde::de::Deserialize<'de> for CardSuit {
         D: Deserializer<'de>,
     {
         struct CardSuitVisitor;
-        const FIELDS: &'static [&'static str] = &["♠", "♣", "♦", "♥"];
+        const FIELDS: &[&str] = &["♠", "♣", "♦", "♥"];
 
         impl<'de> Visitor<'de> for CardSuitVisitor {
             type Value = CardSuit;
