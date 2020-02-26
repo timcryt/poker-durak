@@ -36,6 +36,8 @@ const TIMEOUT_SECS: u64 = 300;
 const PLAYING_ACTIVITY_WAIT_MILLIS: u64 = 200;
 const WS_CLOSED_WAIT_SECS: u64 = 5;
 const WS_UPDATE_MILLIS: u64 = 100;
+const WS_PREWAIT_MILLIS: u64 = 10;
+const REFRESH_DURATION_MILLIS: u64 = 250;
 
 struct GamePool {
     players: HashSet<usize>,
@@ -203,8 +205,8 @@ fn websocket_next(
     });
 
     let now = SystemTime::now();
+    sleep(Duration::from_millis(WS_PREWAIT_MILLIS));
     while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL_SECS) {
-        sleep(Duration::from_millis(WS_UPDATE_MILLIS));
         let run_flag = *Arc::clone(&run_flag).lock().unwrap();
         match run_flag {
             true => {
@@ -212,6 +214,7 @@ fn websocket_next(
             }
             false => (),
         }
+        sleep(Duration::from_millis(WS_UPDATE_MILLIS));
     }
 
     None
@@ -452,6 +455,7 @@ fn websocket_handling_thread(
     };
 
     let mut websocket = Some(websocket);
+    let mut last_refresh = SystemTime::now();
 
     loop {
         match websocket_next(websocket.unwrap()) {
@@ -464,31 +468,44 @@ fn websocket_handling_thread(
                 break;
             }
             Some((mut ws, Some(message))) => {
-                if game.get_stepping_player() == pid && your_turn_new {
-                    if stepping_time.is_none() {
-                        stepping_time = Some(SystemTime::now());
-                    }
-                    let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
-
-                    ws.send_text(
-                        &serde_json::to_string(&JsonResponse::YourTurn(
-                            game.get_state_cards(),
-                            game.get_player_cards(pid),
-                            game.get_deck_size(),
-                            game.players_decks()[0],
-                            TIMEOUT_SECS - time_elapsed,
-                        ))
-                        .unwrap(),
-                    )
-                    .ok();
-                    your_turn_new = false;
-                } else if game.get_stepping_player() == pid
-                    && stepping_time.is_some()
-                    && stepping_time.unwrap().elapsed().unwrap() > Duration::from_secs(TIMEOUT_SECS)
+                if last_refresh.elapsed().unwrap() > Duration::from_millis(REFRESH_DURATION_MILLIS)
                 {
-                    ws_end_success = true;
-                    websocket = Some(ws);
-                    break;
+                    let stepping_player = game.get_stepping_player();
+                    if stepping_player == pid && your_turn_new {
+                        if stepping_time.is_none() {
+                            stepping_time = Some(SystemTime::now());
+                        }
+                        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
+
+                        ws.send_text(
+                            &serde_json::to_string(&JsonResponse::YourTurn(
+                                game.get_state_cards(),
+                                game.get_player_cards(pid),
+                                game.get_deck_size(),
+                                game.players_decks()[0],
+                                TIMEOUT_SECS - time_elapsed,
+                            ))
+                            .unwrap(),
+                        )
+                        .ok();
+                        your_turn_new = false;
+                    } else if stepping_player == pid
+                        && stepping_time.is_some()
+                        && stepping_time.unwrap().elapsed().unwrap()
+                            > Duration::from_secs(TIMEOUT_SECS)
+                    {
+                        ws_end_success = true;
+                        websocket = Some(ws);
+                        break;
+                    }
+
+                    if let Some(_) = game.game_winner() {
+                        ws_end_success = true;
+                        websocket = Some(ws);
+                        break;
+                    }
+
+                    last_refresh = SystemTime::now();
                 }
 
                 match message {
@@ -544,12 +561,6 @@ fn websocket_handling_thread(
                             .unwrap();
 
                         if ws_end_success {
-                            websocket = Some(ws);
-                            break;
-                        }
-
-                        if let Some(_) = game.game_winner() {
-                            ws_end_success = true;
                             websocket = Some(ws);
                             break;
                         }

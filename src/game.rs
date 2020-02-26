@@ -552,7 +552,7 @@ impl GameTrait for GameChannelClient {
     }
 }
 
-const MANAGER_SLEEP_MILLIS: u64 = 100;
+const MANAGER_SLEEP_MILLIS: u64 = 20;
 
 pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
     let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
@@ -563,59 +563,57 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
     'outer: loop {
         for player in players.iter().enumerate() {
             if playing[player.0] {
-                loop {
-                    match (player.1).0.try_recv() {
-                        Ok(req) => (match req {
-                            GameRequest::MakeStep(pid, step) => {
-                                Some(GameResponse::YouMadeStep(game.make_step(pid, step)))
-                            }
-                            GameRequest::GetPlayersDecks => {
-                                Some(GameResponse::PlayersDecks(game.players_decks()))
-                            }
-                            GameRequest::KickPlayer(pid) => {
-                                game.kick_player(pid);
-                                None
-                            }
-                            GameRequest::GetSteppingPlayer => {
-                                Some(GameResponse::SteppingPlayer(game.get_stepping_player()))
-                            }
-                            GameRequest::GetPlayerCards(pid) => {
-                                Some(GameResponse::YourCards(game.get_player_cards(pid)))
-                            }
-                            GameRequest::GetDeckSize => {
-                                Some(GameResponse::DeckSize(game.get_deck_size()))
-                            }
-                            GameRequest::IsPlayerKicked(pid) => {
-                                Some(GameResponse::PlayerKicked(game.is_player_kicked(pid)))
-                            }
-                            GameRequest::GetGameWinner => {
-                                Some(GameResponse::GameWinner(game.game_winner()))
-                            }
-                            GameRequest::GetState => {
-                                Some(GameResponse::GameState(game.get_state_cards()))
-                            }
-                            GameRequest::Exit(pid) => {
-                                game.kick_player(pid);
-                                playing[player.0] = false;
-                                count -= 1;
-                                if count == 0 {
-                                    (player.1).1.send(GameResponse::Exited(true)).unwrap();
-                                    break 'outer;
-                                }
-                                Some(GameResponse::Exited(false))
-                            }
-                        })
-                        .map_or((), |resp| (player.1).1.send(resp).unwrap()),
-                        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                match (player.1).0.try_recv() {
+                    Ok(req) => (match req {
+                        GameRequest::MakeStep(pid, step) => {
+                            Some(GameResponse::YouMadeStep(game.make_step(pid, step)))
+                        }
+                        GameRequest::GetPlayersDecks => {
+                            Some(GameResponse::PlayersDecks(game.players_decks()))
+                        }
+                        GameRequest::KickPlayer(pid) => {
+                            game.kick_player(pid);
+                            None
+                        }
+                        GameRequest::GetSteppingPlayer => {
+                            Some(GameResponse::SteppingPlayer(game.get_stepping_player()))
+                        }
+                        GameRequest::GetPlayerCards(pid) => {
+                            Some(GameResponse::YourCards(game.get_player_cards(pid)))
+                        }
+                        GameRequest::GetDeckSize => {
+                            Some(GameResponse::DeckSize(game.get_deck_size()))
+                        }
+                        GameRequest::IsPlayerKicked(pid) => {
+                            Some(GameResponse::PlayerKicked(game.is_player_kicked(pid)))
+                        }
+                        GameRequest::GetGameWinner => {
+                            Some(GameResponse::GameWinner(game.game_winner()))
+                        }
+                        GameRequest::GetState => {
+                            Some(GameResponse::GameState(game.get_state_cards()))
+                        }
+                        GameRequest::Exit(pid) => {
+                            game.kick_player(pid);
                             playing[player.0] = false;
                             count -= 1;
                             if count == 0 {
+                                (player.1).1.send(GameResponse::Exited(true)).unwrap();
                                 break 'outer;
                             }
+                            Some(GameResponse::Exited(false))
                         }
-                        Err(std::sync::mpsc::TryRecvError::Empty) => {
-                            break;
+                    })
+                    .map_or((), |resp| (player.1).1.send(resp).unwrap()),
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        playing[player.0] = false;
+                        count -= 1;
+                        if count == 0 {
+                            break 'outer;
                         }
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        break;
                     }
                 }
             }
