@@ -34,13 +34,13 @@ mod game;
 use crate::card::*;
 use crate::game::*;
 
-const HEARTBIT_INTERVAL_SECS: u64 = 15;
-const TIMEOUT_SECS: u64 = 300;
-const PLAYING_ACTIVITY_WAIT_MILLIS: u64 = 200;
-const WS_CLOSED_WAIT_SECS: u64 = 5;
-const WS_UPDATE_MILLIS: u64 = 100;
-const WS_PREWAIT_MILLIS: u64 = 10;
-const REFRESH_DURATION_MILLIS: u64 = 250;
+const HEARTBIT_INTERVAL: Duration = Duration::from_secs(15);
+const TIMEOUT: Duration = Duration::from_secs(300);
+const PLAYING_ACTIVITY_WAIT: Duration = Duration::from_millis(200);
+const WS_CLOSED_WAIT: Duration = Duration::from_secs(5);
+const WS_UPDATE: Duration = Duration::from_millis(100);
+const WS_PREWAIT: Duration = Duration::from_millis(10);
+const REFRESH_DURATION: Duration = Duration::from_millis(250);
 
 struct GamePool {
     players: HashSet<usize>,
@@ -172,7 +172,7 @@ fn main() {
                             Ok(data) =>
                                 apply(request, Response::from_data(data_by_url(&url), data
                                     .replace("{host}", &addr_clone)
-                                    .replace("{HEARTBIT_INTERVAL}", &HEARTBIT_INTERVAL_SECS.to_string())
+                                    .replace("{HEARTBIT_INTERVAL}", &(HEARTBIT_INTERVAL.as_secs().to_string()))
                                     .replace("{all_games}", &all_games.to_string())
                                     .replace("{now_games}", &now_games.to_string())
                                 )),
@@ -210,12 +210,12 @@ fn websocket_next(
     });
 
     let now = SystemTime::now();
-    sleep(Duration::from_millis(WS_PREWAIT_MILLIS));
-    while now.elapsed().unwrap() < Duration::from_secs(HEARTBIT_INTERVAL_SECS) {
+    sleep(WS_PREWAIT);
+    while now.elapsed().unwrap() < HEARTBIT_INTERVAL {
         if run_flag.load(Ordering::Relaxed) {
             return child.join().ok().flatten();
         }
-        sleep(Duration::from_millis(WS_UPDATE_MILLIS));
+        sleep(WS_UPDATE);
     }
 
     None
@@ -247,7 +247,7 @@ fn player_init(
     game_pool: Arc<Mutex<GamePool>>,
     pid: usize,
 ) -> (Arc<Mutex<GamePool>>, bool, Option<GameChannelClient>) {
-    sleep(Duration::from_millis(PLAYING_ACTIVITY_WAIT_MILLIS));
+    sleep(PLAYING_ACTIVITY_WAIT);
 
     if game_pool.lock().unwrap().on_delete.contains_key(&pid) {
         info!("PLAYER {} is restoring", pid);
@@ -283,7 +283,7 @@ fn game_exit(
             game_pool.lock().unwrap().waiting_players.remove(&pid);
         } else if ws_end_success == Some(false) {
             info!("PLAYER {} disconnected", pid);
-            sleep(Duration::from_secs(WS_CLOSED_WAIT_SECS));
+            sleep(WS_CLOSED_WAIT);
         }
 
         let mut game_pool = game_pool.lock().unwrap();
@@ -388,6 +388,43 @@ fn wait_game(
     Some(websocket)
 }
 
+fn refresh_time(
+    game: &mut GameChannelClient,
+    stepping_time: &mut Option<SystemTime>,
+    your_turn_new: &mut bool,
+    pid: usize,
+) -> Result<Option<String>, ()> {
+    let stepping_player = game.get_stepping_player();
+    if stepping_player == pid && *your_turn_new {
+        if stepping_time.is_none() {
+            *stepping_time = Some(SystemTime::now());
+        }
+        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
+
+        let msg = serde_json::to_string(&JsonResponse::YourTurn(
+            game.get_state_cards(),
+            game.get_player_cards(pid),
+            game.get_deck_size(),
+            game.players_decks()[0],
+            TIMEOUT.as_secs() - time_elapsed,
+        ))
+        .unwrap();
+        *your_turn_new = false;
+        return Ok(Some(msg));
+    } else if stepping_player == pid {
+        if let Some(stepping_time) = stepping_time {
+            if stepping_time.elapsed().unwrap() > TIMEOUT {
+                return Err(());
+            }
+        }
+    }
+
+    if game.game_winner().is_some() {
+        return Err(());
+    }
+    Ok(None)
+}
+
 fn websocket_handling_thread(
     mut websocket: websocket::Websocket,
     game_pool: Arc<Mutex<GamePool>>,
@@ -465,41 +502,17 @@ fn websocket_handling_thread(
                 break;
             }
             Some((mut ws, Some(message))) => {
-                if last_refresh.elapsed().unwrap() > Duration::from_millis(REFRESH_DURATION_MILLIS)
-                {
-                    let stepping_player = game.get_stepping_player();
-                    if stepping_player == pid && your_turn_new {
-                        if stepping_time.is_none() {
-                            stepping_time = Some(SystemTime::now());
+                if last_refresh.elapsed().unwrap() > REFRESH_DURATION {
+                    match refresh_time(&mut game, &mut stepping_time, &mut your_turn_new, pid) {
+                        Ok(Some(msg)) => {
+                            ws.send_text(&msg).ok();
                         }
-                        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
-
-                        ws.send_text(
-                            &serde_json::to_string(&JsonResponse::YourTurn(
-                                game.get_state_cards(),
-                                game.get_player_cards(pid),
-                                game.get_deck_size(),
-                                game.players_decks()[0],
-                                TIMEOUT_SECS - time_elapsed,
-                            ))
-                            .unwrap(),
-                        )
-                        .ok();
-                        your_turn_new = false;
-                    } else if stepping_player == pid
-                        && stepping_time.is_some()
-                        && stepping_time.unwrap().elapsed().unwrap()
-                            > Duration::from_secs(TIMEOUT_SECS)
-                    {
-                        ws_end_success = true;
-                        websocket = Some(ws);
-                        break;
-                    }
-
-                    if game.game_winner().is_some() {
-                        ws_end_success = true;
-                        websocket = Some(ws);
-                        break;
+                        Err(()) => {
+                            ws_end_success = true;
+                            websocket = Some(ws);
+                            break;
+                        }
+                        _ => (),
                     }
 
                     last_refresh = SystemTime::now();

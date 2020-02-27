@@ -546,7 +546,7 @@ impl GameTrait for GameChannelClient {
     }
 }
 
-const MANAGER_SLEEP_MILLIS: u64 = 20;
+const MANAGER_SLEEP: std::time::Duration = std::time::Duration::from_millis(20);
 
 pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
     let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
@@ -612,7 +612,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
                 }
             }
         }
-        std::thread::sleep(std::time::Duration::from_millis(MANAGER_SLEEP_MILLIS));
+        std::thread::sleep(MANAGER_SLEEP);
     }
     info!("GAME {} exiting", gid);
 }
