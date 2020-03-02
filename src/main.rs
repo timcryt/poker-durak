@@ -518,67 +518,62 @@ fn websocket_handling_thread(
                     last_refresh = SystemTime::now();
                 }
 
-                match message {
-                    websocket::Message::Text(txt) => {
-                        if txt != "\"Ping\"" {
-                            info!("PLAYER From {} request {}", pid, txt);
-                        }
+                if let websocket::Message::Text(txt) = message {
+                    if txt != "\"Ping\"" {
+                        info!("PLAYER From {} request {}", pid, txt);
+                    }
 
-                        let json_response = match serde_json::from_str(&txt) {
-                            Ok(json_request) => match json_request {
-                                JsonRequest::Ping => JsonResponse::Pong,
-                                JsonRequest::MakeStep(step) => match game.make_step(pid, step) {
-                                    Ok(()) => {
-                                        your_turn_new = true;
-                                        stepping_time = None;
-                                        if game.is_player_kicked(pid) {
-                                            ws_end_success = true;
-                                            websocket = Some(ws);
-                                            break;
-                                        } else {
-                                            JsonResponse::YouMadeStep(
-                                                game.get_state_cards(),
-                                                game.get_player_cards(pid),
-                                                game.get_deck_size(),
-                                                game.get_player_cards(game.get_stepping_player())
-                                                    .len(),
-                                            )
-                                        }
+                    let json_response = match serde_json::from_str(&txt) {
+                        Ok(json_request) => match json_request {
+                            JsonRequest::Ping => JsonResponse::Pong,
+                            JsonRequest::MakeStep(step) => match game.make_step(pid, step) {
+                                Ok(()) => {
+                                    your_turn_new = true;
+                                    stepping_time = None;
+                                    if game.is_player_kicked(pid) {
+                                        ws_end_success = true;
+                                        websocket = Some(ws);
+                                        break;
+                                    } else {
+                                        JsonResponse::YouMadeStep(
+                                            game.get_state_cards(),
+                                            game.get_player_cards(pid),
+                                            game.get_deck_size(),
+                                            game.get_player_cards(game.get_stepping_player()).len(),
+                                        )
                                     }
-                                    Err(e) => JsonResponse::StepError(e),
-                                },
-                                JsonRequest::Exit => {
-                                    game.kick_player(pid);
-                                    ws_end_success = true;
-                                    JsonResponse::GameLoser
                                 }
+                                Err(e) => JsonResponse::StepError(e),
                             },
-                            Err(_) => JsonResponse::JsonError,
-                        };
-
-                        match &json_response {
-                            JsonResponse::Pong => (),
-                            _ => {
-                                info!(
-                                    "PLAYER Response {} to {}",
-                                    serde_json::to_string(&json_response).unwrap(),
-                                    pid
-                                );
+                            JsonRequest::Exit => {
+                                game.kick_player(pid);
+                                ws_end_success = true;
+                                JsonResponse::GameLoser
                             }
-                        }
+                        },
+                        Err(_) => JsonResponse::JsonError,
+                    };
 
-                        ws.send_text(&serde_json::to_string(&json_response).unwrap())
-                            .unwrap();
-
-                        if ws_end_success {
-                            websocket = Some(ws);
-                            break;
+                    match &json_response {
+                        JsonResponse::Pong => (),
+                        _ => {
+                            info!(
+                                "PLAYER Response {} to {}",
+                                serde_json::to_string(&json_response).unwrap(),
+                                pid
+                            );
                         }
                     }
 
-                    _ => {
-                        warn!("PLAYER Unknown message from a websocket {}", pid);
+                    ws.send_text(&serde_json::to_string(&json_response).unwrap())
+                        .unwrap();
+
+                    if ws_end_success {
+                        websocket = Some(ws);
+                        break;
                     }
+                } else {
+                    warn!("PLAYER Unknown message from a websocket {}", pid);
                 }
                 websocket = Some(ws);
             }
