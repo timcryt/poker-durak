@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, seq::SliceRandom};
 
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +61,7 @@ impl Deck {
                 });
             }
         }
-        thread_rng().shuffle(&mut cards);
+        cards.shuffle(&mut thread_rng());
 
         Deck { cards }
     }
@@ -146,7 +146,7 @@ impl Game {
                     cards: HashSet::<Card>::new(),
                 })
                 .collect::<Vec<_>>();
-            thread_rng().shuffle(&mut players);
+            players.shuffle(&mut thread_rng());
             let players_map = players.iter().enumerate().map(|x| (x.1.id, x.0)).collect();
 
             let (players_next, players_prev): (Vec<_>, Vec<_>) = (0..(players.len()))

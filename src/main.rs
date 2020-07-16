@@ -8,7 +8,7 @@ use std::sync::{
 };
 use std::thread;
 use std::thread::sleep;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use rand::{thread_rng, Rng};
 
@@ -45,7 +45,7 @@ const REFRESH_DURATION: Duration = Duration::from_millis(250);
 struct GamePool {
     players: HashSet<usize>,
     players_channels: HashMap<usize, GameChannelClient>,
-    players_time: HashMap<usize, Option<std::time::SystemTime>>,
+    players_time: HashMap<usize, Option<Instant>>,
     waiting_players: HashSet<usize>,
     on_delete: HashMap<usize, Option<GameChannelClient>>,
     counter: usize,
@@ -209,9 +209,9 @@ fn websocket_next(
         Some((websocket, msg))
     });
 
-    let now = SystemTime::now();
+    let now = Instant::now();
     sleep(WS_PREWAIT);
-    while now.elapsed().unwrap() < HEARTBIT_INTERVAL {
+    while now.elapsed() < HEARTBIT_INTERVAL {
         if run_flag.load(Ordering::Relaxed) {
             return child.join().ok().flatten();
         }
@@ -390,16 +390,16 @@ fn wait_game(
 
 fn refresh_time(
     game: &mut GameChannelClient,
-    stepping_time: &mut Option<SystemTime>,
+    stepping_time: &mut Option<Instant>,
     your_turn_new: &mut bool,
     pid: usize,
 ) -> Result<Option<String>, ()> {
     let stepping_player = game.get_stepping_player();
     if stepping_player == pid && *your_turn_new {
         if stepping_time.is_none() {
-            *stepping_time = Some(SystemTime::now());
+            *stepping_time = Some(Instant::now());
         }
-        let time_elapsed = stepping_time.unwrap().elapsed().unwrap().as_secs();
+        let time_elapsed = stepping_time.unwrap().elapsed().as_secs();
 
         let msg = serde_json::to_string(&JsonResponse::YourTurn(
             game.get_state_cards(),
@@ -413,7 +413,7 @@ fn refresh_time(
         return Ok(Some(msg));
     } else if stepping_player == pid {
         if let Some(stepping_time) = stepping_time {
-            if stepping_time.elapsed().unwrap() > TIMEOUT {
+            if stepping_time.elapsed() > TIMEOUT {
                 return Err(());
             }
         }
@@ -480,7 +480,7 @@ fn websocket_handling_thread(
     let mut your_turn_new = true;
     let mut ws_end_success = false;
 
-    let mut stepping_time: Option<SystemTime> = {
+    let mut stepping_time: Option<Instant> = {
         let mut game_pool = game_pool.lock().unwrap();
         match game_pool.players_time.remove(&pid) {
             Some(time) => time,
@@ -489,7 +489,7 @@ fn websocket_handling_thread(
     };
 
     let mut websocket = Some(websocket);
-    let mut last_refresh = SystemTime::now();
+    let mut last_refresh = Instant::now();
 
     loop {
         match websocket_next(websocket.unwrap()) {
@@ -502,7 +502,7 @@ fn websocket_handling_thread(
                 break;
             }
             Some((mut ws, Some(message))) => {
-                if last_refresh.elapsed().unwrap() > REFRESH_DURATION {
+                if last_refresh.elapsed() > REFRESH_DURATION {
                     match refresh_time(&mut game, &mut stepping_time, &mut your_turn_new, pid) {
                         Ok(Some(msg)) => {
                             ws.send_text(&msg).ok();
@@ -515,7 +515,7 @@ fn websocket_handling_thread(
                         _ => (),
                     }
 
-                    last_refresh = SystemTime::now();
+                    last_refresh = Instant::now();
                 }
 
                 if let websocket::Message::Text(txt) = message {
