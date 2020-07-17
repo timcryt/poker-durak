@@ -20,8 +20,6 @@ extern crate rouille;
 #[macro_use]
 extern crate log;
 
-extern crate env_logger;
-
 use rouille::content_encoding::apply;
 use rouille::input;
 use rouille::websocket;
@@ -65,7 +63,6 @@ fn get_sid(request: &rouille::Request) -> Option<usize> {
 
 fn data_by_url(url: &str) -> &'static str {
     match url {
-        "/" | "/stat" | "/about" | "/winner" | "/loser" => "text/html",
         "/game_script" => "text/javascript",
         "/game_font" => "font/ttf",
         "/favicon.ico" => "image/png",
@@ -109,8 +106,6 @@ fn main() {
         Some(arg) => arg,
         None => "127.0.0.1:8000".to_string(),
     };
-
-    env_logger::init();
 
     let game_pool = Arc::new(Mutex::new(GamePool {
         players: HashSet::new(),
@@ -170,7 +165,7 @@ fn main() {
 
                         match String::from_utf8(data.clone()) {
                             Ok(data) =>
-                                apply(request, Response::from_data(data_by_url(&url), data
+                                apply(request, Response::from_data(data_by_url(router(&url)), data
                                     .replace("{host}", &addr_clone)
                                     .replace("{HEARTBIT_INTERVAL}", &(HEARTBIT_INTERVAL.as_secs().to_string()))
                                     .replace("{all_games}", &all_games.to_string())
@@ -205,7 +200,7 @@ fn websocket_next(
 
     let child = thread::spawn(move || {
         let msg = websocket.next();
-        run_flag_clone.store(false, Ordering::Relaxed);
+        run_flag_clone.store(true, Ordering::Relaxed);
         Some((websocket, msg))
     });
 
