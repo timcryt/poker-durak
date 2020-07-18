@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use rand::{thread_rng, seq::SliceRandom};
+use rand::{seq::SliceRandom, thread_rng};
 
 use serde::{Deserialize, Serialize};
 
@@ -79,7 +79,7 @@ impl Deck {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Step {
     GetCard,
     GiveComb(HashSet<Card>),
@@ -431,6 +431,7 @@ impl GameTrait for Game {
     }
 }
 
+#[derive(Debug)]
 pub struct GameChannelServer(
     std::sync::mpsc::Receiver<GameRequest>,
     std::sync::mpsc::Sender<GameResponse>,
@@ -441,6 +442,7 @@ pub struct GameChannelClient(
     std::sync::mpsc::Receiver<GameResponse>,
 );
 
+#[derive(Debug)]
 enum GameRequest {
     MakeStep(usize, Step),
     GetPlayersDecks,
@@ -549,7 +551,7 @@ impl GameTrait for GameChannelClient {
 const MANAGER_SLEEP: std::time::Duration = std::time::Duration::from_millis(20);
 
 pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
-    let mut playing = (0..players.len()).map(|_| true).collect::<Vec<_>>();
+    let mut playing = vec![true; players.len()];
     let mut count = players.len();
     let mut game = Game::new(players.iter().map(|x| x.0).collect()).unwrap();
     let players = players.into_iter().map(|x| x.1).collect::<Vec<_>>();
@@ -606,9 +608,7 @@ pub fn game_worker(players: Vec<(PID, GameChannelServer)>, gid: usize) {
                             break 'outer;
                         }
                     }
-                    Err(std::sync::mpsc::TryRecvError::Empty) => {
-                        break;
-                    }
+                    _ => (),
                 }
             }
         }

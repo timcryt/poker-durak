@@ -63,8 +63,6 @@ fn get_sid(request: &rouille::Request) -> Option<usize> {
 
 fn data_by_url(url: &str) -> &'static str {
     match url {
-        "/game_script" => "text/javascript",
-        "/game_font" => "font/ttf",
         "/favicon.ico" => "image/png",
         url if url.ends_with(".css") => "text/css",
         url if url.ends_with(".html") => "text/html",
@@ -287,7 +285,9 @@ fn game_exit(
             if ws_end_success != None {
                 let mut game = game_pool.on_delete.remove(&pid).unwrap().unwrap();
                 info!("PLAYER {} is exiting!", pid);
+
                 game.kick_player(pid);
+
                 if game.game_winner() == Some(pid) {
                     if let Some(mut websocket) = websocket {
                         websocket
