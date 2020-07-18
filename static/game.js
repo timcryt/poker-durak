@@ -154,6 +154,10 @@ socket.onmessage = function(event) {{
             location.replace('/loser');
         } else if (data['ID']) {
             document.getElementById('GamePID').innerText = data['ID'];
+        } else if (data['StepError'] == 'WeakComb') {
+            alert('Слишком слабая комбинация');
+        } else if (data['StepError'] == 'InvalidComb') {
+            alert('Неверная комбинация');
         }
     }
 }}
