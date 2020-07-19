@@ -97,7 +97,26 @@ fn set_cookies(request: &rouille::Request, resp: Response) -> Response {
     }
 }
 
+fn setup_logger() -> Result<(), fern::InitError> {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .chain(std::io::stderr())
+        .apply()?;
+    Ok(())
+}
+
 fn main() {
+    setup_logger().unwrap();
+
     let mut args = args();
     args.next();
     let addr = match args.next() {
@@ -116,6 +135,8 @@ fn main() {
     }));
 
     let addr_clone = addr.clone();
+
+    info!("Listening on {}", addr);
 
     rouille::start_server(&addr, move |request| {
         router!(request,
@@ -458,12 +479,11 @@ fn websocket_handling_thread(
             Some(websocket) => websocket,
             None => return,
         };
-        game_pool
-            .lock()
-            .unwrap()
-            .players_channels
-            .remove(&pid)
-            .unwrap()
+        if let Some(x) = game_pool.lock().unwrap().players_channels.remove(&pid) {
+            x
+        } else {
+            return;
+        }
     };
 
     info!("PLAYER {} is playing!", pid);
