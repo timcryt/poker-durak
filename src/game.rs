@@ -248,21 +248,7 @@ impl Game {
             f = false;
         }
     }
-}
 
-pub trait GameTrait {
-    fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError>;
-    fn players_decks(&self) -> Vec<usize>;
-    fn kick_player(&mut self, pid: PID);
-    fn get_stepping_player(&self) -> PID;
-    fn get_player_cards(&self, pid: PID) -> HashSet<Card>;
-    fn get_deck_size(&self) -> usize;
-    fn is_player_kicked(&self, pid: PID) -> bool;
-    fn game_winner(&self) -> Option<PID>;
-    fn get_state_cards(&self) -> State;
-}
-
-impl GameTrait for Game {
     fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
         let player = self.stepping_player;
         if self.players_map[&pid] != player {
@@ -431,8 +417,7 @@ impl GameTrait for Game {
     }
 }
 
-#[derive(Debug)]
-pub struct GameChannelServer(pub std::sync::mpsc::Sender<GameResponse>);
+type GameChannelServer = std::sync::mpsc::Sender<GameResponse>;
 
 pub struct GameChannelClient(
     pub std::sync::mpsc::Sender<GameRequest>,
@@ -590,13 +575,13 @@ pub fn game_worker(
                     *playing.get_mut(&pid).unwrap() = false;
                     count -= 1;
                     if count == 0 {
-                        players[&pid].0.send(GameResponse::Exited(true)).unwrap();
+                        players[&pid].send(GameResponse::Exited(true)).unwrap();
                         break 'outer;
                     }
                     Some((pid, GameResponse::Exited(false)))
                 }
             })
-            .map_or((), |resp| players[&resp.0].0.send(resp.1).unwrap()),
+            .map_or((), |resp| players[&resp.0].send(resp.1).unwrap()),
             _ => {
                 break 'outer;
             }

@@ -337,7 +337,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
     for player in players {
         game_pool.players.insert(player);
         let (srvt, cltr) = std::sync::mpsc::channel();
-        now_playing.insert(player, GameChannelServer(srvt));
+        now_playing.insert(player, srvt);
         game_pool.players_channels.insert(
             player,
             GameChannelClient(std::sync::mpsc::Sender::clone(&cltt), cltr),
