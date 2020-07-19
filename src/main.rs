@@ -288,7 +288,7 @@ fn game_exit(
 
                 game.kick_player(pid);
 
-                if game.game_winner() == Some(pid) {
+                if game.game_winner(pid) == Some(pid) {
                     if let Some(mut websocket) = websocket {
                         websocket
                             .send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap())
@@ -330,19 +330,24 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
 
     info!("GAME {} created", counter);
 
-    let mut now_playing = Vec::new();
+    let mut now_playing = HashMap::new();
+
+    let (cltt, srvr) = std::sync::mpsc::channel();
 
     for player in players {
         game_pool.players.insert(player);
-        let (serv, clnt) = new_game_channel();
-        now_playing.push((player, serv));
-        game_pool.players_channels.insert(player, clnt);
+        let (srvt, cltr) = std::sync::mpsc::channel();
+        now_playing.insert(player, GameChannelServer(srvt));
+        game_pool.players_channels.insert(
+            player,
+            GameChannelClient(std::sync::mpsc::Sender::clone(&cltt), cltr),
+        );
         game_pool.players_time.insert(player, None);
     }
     game_pool.waiting_players.clear();
 
     let counter: usize = game_pool.counter;
-    thread::spawn(move || game_worker(now_playing, counter));
+    thread::spawn(move || game_worker(now_playing, srvr, counter));
 }
 
 fn wait_game(
@@ -389,7 +394,7 @@ fn refresh_time(
     your_turn_new: &mut bool,
     pid: usize,
 ) -> Result<Option<String>, ()> {
-    let stepping_player = game.get_stepping_player();
+    let stepping_player = game.get_stepping_player(pid);
     if stepping_player == pid && *your_turn_new {
         if stepping_time.is_none() {
             *stepping_time = Some(Instant::now());
@@ -397,10 +402,10 @@ fn refresh_time(
         let time_elapsed = stepping_time.unwrap().elapsed().as_secs();
 
         let msg = serde_json::to_string(&JsonResponse::YourTurn(
-            game.get_state_cards(),
-            game.get_player_cards(pid),
-            game.get_deck_size(),
-            game.players_decks()[0],
+            game.get_state_cards(pid),
+            game.get_player_cards(pid, pid),
+            game.get_deck_size(pid),
+            game.players_decks(pid)[0],
             TIMEOUT.as_secs() - time_elapsed,
         ))
         .unwrap();
@@ -414,7 +419,7 @@ fn refresh_time(
         }
     }
 
-    if game.game_winner().is_some() {
+    if game.game_winner(pid).is_some() {
         return Err(());
     }
     Ok(None)
@@ -465,8 +470,8 @@ fn websocket_handling_thread(
     websocket
         .send_text(
             &serde_json::to_string(&JsonResponse::YourCards(
-                game.get_player_cards(pid),
-                game.get_deck_size(),
+                game.get_player_cards(pid, pid),
+                game.get_deck_size(pid),
             ))
             .unwrap(),
         )
@@ -531,10 +536,14 @@ fn websocket_handling_thread(
                                         break;
                                     } else {
                                         JsonResponse::YouMadeStep(
-                                            game.get_state_cards(),
-                                            game.get_player_cards(pid),
-                                            game.get_deck_size(),
-                                            game.get_player_cards(game.get_stepping_player()).len(),
+                                            game.get_state_cards(pid),
+                                            game.get_player_cards(pid, pid),
+                                            game.get_deck_size(pid),
+                                            game.get_player_cards(
+                                                pid,
+                                                game.get_stepping_player(pid),
+                                            )
+                                            .len(),
                                         )
                                     }
                                 }
