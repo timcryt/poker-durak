@@ -420,22 +420,23 @@ impl Game {
 type GameChannelServer = std::sync::mpsc::Sender<GameResponse>;
 
 pub struct GameChannelClient(
-    pub std::sync::mpsc::Sender<GameRequest>,
+    pub std::sync::mpsc::Sender<(PID, GameRequest)>,
     pub std::sync::mpsc::Receiver<GameResponse>,
+    pub PID,
 );
 
 #[derive(Debug)]
 pub enum GameRequest {
-    MakeStep(PID, Step),
-    GetPlayersDecks(PID),
-    KickPlayer(PID),
-    GetSteppingPlayer(PID),
-    GetPlayerCards(PID, PID),
-    GetDeckSize(PID),
-    IsPlayerKicked(PID),
-    GetGameWinner(PID),
-    GetState(PID),
-    Exit(PID),
+    MakeStep(Step),
+    GetPlayersDecks,
+    KickPlayer,
+    GetSteppingPlayer,
+    GetPlayerCards(PID),
+    GetDeckSize,
+    IsPlayerKicked,
+    GetGameWinner,
+    GetState,
+    Exit,
 }
 
 #[derive(Debug)]
@@ -452,76 +453,92 @@ pub enum GameResponse {
 }
 
 impl GameChannelClient {
-    pub fn exit(self, pid: PID) -> bool {
-        self.0.send(GameRequest::Exit(pid)).unwrap();
+    pub fn exit(self) -> bool {
+        self.0.send((self.2, GameRequest::Exit)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::Exited(f) => f,
             _ => panic!(),
         }
     }
 
-    pub fn make_step(&mut self, pid: PID, step: Step) -> Result<(), StepError> {
-        self.0.send(GameRequest::MakeStep(pid, step)).unwrap();
+    pub fn make_step(&mut self, step: Step) -> Result<(), StepError> {
+        self.0.send((self.2, GameRequest::MakeStep(step))).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::YouMadeStep(res) => res,
             _ => panic!(),
         }
     }
 
-    pub fn players_decks(&self, pid: PID) -> Vec<usize> {
-        self.0.send(GameRequest::GetPlayersDecks(pid)).unwrap();
+    pub fn players_decks(&self) -> Vec<usize> {
+        self.0.send((self.2, GameRequest::GetPlayersDecks)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::PlayersDecks(res) => res,
             _ => panic!(),
         }
     }
 
-    pub fn kick_player(&mut self, pid: PID) {
-        self.0.send(GameRequest::KickPlayer(pid)).unwrap();
+    pub fn kick_me(&mut self) {
+        self.0.send((self.2, GameRequest::KickPlayer)).unwrap();
     }
 
-    pub fn get_stepping_player(&self, pid: PID) -> usize {
-        self.0.send(GameRequest::GetSteppingPlayer(pid)).unwrap();
+    pub fn get_stepping_player(&self) -> usize {
+        self.0
+            .send((self.2, GameRequest::GetSteppingPlayer))
+            .unwrap();
         match self.1.recv().unwrap() {
             GameResponse::SteppingPlayer(pid) => pid,
             _ => panic!(),
         }
     }
 
-    pub fn get_player_cards(&self, from: PID, pid: PID) -> HashSet<Card> {
-        self.0.send(GameRequest::GetPlayerCards(from, pid)).unwrap();
+    pub fn get_my_cards(&self) -> HashSet<Card> {
+        self.0
+            .send((self.2, GameRequest::GetPlayerCards(self.2)))
+            .unwrap();
         match self.1.recv().unwrap() {
             GameResponse::YourCards(cards) => cards,
             _ => panic!(),
         }
     }
 
-    pub fn get_deck_size(&self, pid: PID) -> usize {
-        self.0.send(GameRequest::GetDeckSize(pid)).unwrap();
+    pub fn get_another_number_of_cards(&self, pid: PID) -> usize {
+        self.0
+            .send((self.2, GameRequest::GetPlayerCards(pid)))
+            .unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::YourCards(cards) => cards.len(),
+            _ => panic!(),
+        }
+    }
+
+    pub fn get_deck_size(&self) -> usize {
+        self.0.send((self.2, GameRequest::GetDeckSize)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::DeckSize(size) => size,
             _ => panic!(),
         }
     }
 
-    pub fn is_player_kicked(&self, pid: PID) -> bool {
-        self.0.send(GameRequest::IsPlayerKicked(pid)).unwrap();
+    pub fn is_me_kicked(&self) -> bool {
+        self.0
+            .send((self.2, (GameRequest::IsPlayerKicked)))
+            .unwrap();
         match self.1.recv().unwrap() {
             GameResponse::PlayerKicked(f) => f,
             _ => panic!(),
         }
     }
 
-    pub fn game_winner(&self, pid: PID) -> Option<PID> {
-        self.0.send(GameRequest::GetGameWinner(pid)).unwrap();
+    pub fn game_winner(&self) -> Option<PID> {
+        self.0.send((self.2, (GameRequest::GetGameWinner))).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::GameWinner(winner) => winner,
             _ => panic!(),
         }
     }
 
-    pub fn get_state_cards(&self, pid: PID) -> State {
-        self.0.send(GameRequest::GetState(pid)).unwrap();
+    pub fn get_state_cards(&self) -> State {
+        self.0.send((self.2, GameRequest::GetState)).unwrap();
         match self.1.recv().unwrap() {
             GameResponse::GameState(state) => state,
             _ => panic!(),
@@ -531,7 +548,7 @@ impl GameChannelClient {
 
 pub fn game_worker(
     players: HashMap<PID, GameChannelServer>,
-    rx: std::sync::mpsc::Receiver<GameRequest>,
+    rx: std::sync::mpsc::Receiver<(PID, GameRequest)>,
     gid: usize,
 ) {
     let mut playing = players.keys().map(|x| (x, true)).collect::<HashMap<_, _>>();
@@ -540,48 +557,46 @@ pub fn game_worker(
     info!("GAME {} started", gid);
     'outer: loop {
         match rx.recv() {
-            Ok(req) => (match req {
-                GameRequest::MakeStep(pid, step) => {
-                    Some((pid, GameResponse::YouMadeStep(game.make_step(pid, step))))
-                }
-                GameRequest::GetPlayersDecks(pid) => {
-                    Some((pid, GameResponse::PlayersDecks(game.players_decks())))
-                }
-                GameRequest::KickPlayer(pid) => {
-                    game.kick_player(pid);
-                    None
-                }
-                GameRequest::GetSteppingPlayer(pid) => Some((
-                    pid,
-                    GameResponse::SteppingPlayer(game.get_stepping_player()),
-                )),
-                GameRequest::GetPlayerCards(from, pid) => {
-                    Some((from, GameResponse::YourCards(game.get_player_cards(pid))))
-                }
-                GameRequest::GetDeckSize(pid) => {
-                    Some((pid, GameResponse::DeckSize(game.get_deck_size())))
-                }
-                GameRequest::IsPlayerKicked(pid) => {
-                    Some((pid, GameResponse::PlayerKicked(game.is_player_kicked(pid))))
-                }
-                GameRequest::GetGameWinner(pid) => {
-                    Some((pid, GameResponse::GameWinner(game.game_winner())))
-                }
-                GameRequest::GetState(pid) => {
-                    Some((pid, GameResponse::GameState(game.get_state_cards())))
-                }
-                GameRequest::Exit(pid) => {
-                    game.kick_player(pid);
-                    *playing.get_mut(&pid).unwrap() = false;
-                    count -= 1;
-                    if count == 0 {
-                        players[&pid].send(GameResponse::Exited(true)).unwrap();
-                        break 'outer;
+            Ok(req) => {
+                let (pid, req) = req;
+                (match req {
+                    GameRequest::MakeStep(step) => {
+                        Some(GameResponse::YouMadeStep(game.make_step(pid, step)))
                     }
-                    Some((pid, GameResponse::Exited(false)))
-                }
-            })
-            .map_or((), |resp| players[&resp.0].send(resp.1).unwrap()),
+                    GameRequest::GetPlayersDecks => {
+                        Some(GameResponse::PlayersDecks(game.players_decks()))
+                    }
+                    GameRequest::KickPlayer => {
+                        game.kick_player(pid);
+                        None
+                    }
+                    GameRequest::GetSteppingPlayer => {
+                        Some(GameResponse::SteppingPlayer(game.get_stepping_player()))
+                    }
+                    GameRequest::GetPlayerCards(pid) => {
+                        Some(GameResponse::YourCards(game.get_player_cards(pid)))
+                    }
+                    GameRequest::GetDeckSize => Some(GameResponse::DeckSize(game.get_deck_size())),
+                    GameRequest::IsPlayerKicked => {
+                        Some(GameResponse::PlayerKicked(game.is_player_kicked(pid)))
+                    }
+                    GameRequest::GetGameWinner => {
+                        Some(GameResponse::GameWinner(game.game_winner()))
+                    }
+                    GameRequest::GetState => Some(GameResponse::GameState(game.get_state_cards())),
+                    GameRequest::Exit => {
+                        game.kick_player(pid);
+                        *playing.get_mut(&pid).unwrap() = false;
+                        count -= 1;
+                        if count == 0 {
+                            players[&pid].send(GameResponse::Exited(true)).unwrap();
+                            break 'outer;
+                        }
+                        Some(GameResponse::Exited(false))
+                    }
+                })
+                .map_or((), |resp| players[&pid].send(resp).unwrap())
+            }
             _ => {
                 break 'outer;
             }

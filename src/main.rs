@@ -286,9 +286,9 @@ fn game_exit(
                 let mut game = game_pool.on_delete.remove(&pid).unwrap().unwrap();
                 info!("PLAYER {} is exiting!", pid);
 
-                game.kick_player(pid);
+                game.kick_me();
 
-                if game.game_winner(pid) == Some(pid) {
+                if game.game_winner() == Some(pid) {
                     if let Some(mut websocket) = websocket {
                         websocket
                             .send_text(&serde_json::to_string(&JsonResponse::GameWinner).unwrap())
@@ -300,7 +300,7 @@ fn game_exit(
                         .ok();
                 }
 
-                if game.exit(pid) {
+                if game.exit() {
                     game_pool.playing -= 1;
                 }
 
@@ -340,7 +340,7 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
         now_playing.insert(player, srvt);
         game_pool.players_channels.insert(
             player,
-            GameChannelClient(std::sync::mpsc::Sender::clone(&cltt), cltr),
+            GameChannelClient(std::sync::mpsc::Sender::clone(&cltt), cltr, player),
         );
         game_pool.players_time.insert(player, None);
     }
@@ -394,7 +394,7 @@ fn refresh_time(
     your_turn_new: &mut bool,
     pid: usize,
 ) -> Result<Option<String>, ()> {
-    let stepping_player = game.get_stepping_player(pid);
+    let stepping_player = game.get_stepping_player();
     if stepping_player == pid && *your_turn_new {
         if stepping_time.is_none() {
             *stepping_time = Some(Instant::now());
@@ -402,10 +402,10 @@ fn refresh_time(
         let time_elapsed = stepping_time.unwrap().elapsed().as_secs();
 
         let msg = serde_json::to_string(&JsonResponse::YourTurn(
-            game.get_state_cards(pid),
-            game.get_player_cards(pid, pid),
-            game.get_deck_size(pid),
-            game.players_decks(pid)[0],
+            game.get_state_cards(),
+            game.get_my_cards(),
+            game.get_deck_size(),
+            game.players_decks()[0],
             TIMEOUT.as_secs() - time_elapsed,
         ))
         .unwrap();
@@ -419,7 +419,7 @@ fn refresh_time(
         }
     }
 
-    if game.game_winner(pid).is_some() {
+    if game.game_winner().is_some() {
         return Err(());
     }
     Ok(None)
@@ -470,8 +470,8 @@ fn websocket_handling_thread(
     websocket
         .send_text(
             &serde_json::to_string(&JsonResponse::YourCards(
-                game.get_player_cards(pid, pid),
-                game.get_deck_size(pid),
+                game.get_my_cards(),
+                game.get_deck_size(),
             ))
             .unwrap(),
         )
@@ -526,31 +526,29 @@ fn websocket_handling_thread(
                     let json_response = match serde_json::from_str(&txt) {
                         Ok(json_request) => match json_request {
                             JsonRequest::Ping => JsonResponse::Pong,
-                            JsonRequest::MakeStep(step) => match game.make_step(pid, step) {
+                            JsonRequest::MakeStep(step) => match game.make_step(step) {
                                 Ok(()) => {
                                     your_turn_new = true;
                                     stepping_time = None;
-                                    if game.is_player_kicked(pid) {
+                                    if game.is_me_kicked() {
                                         ws_end_success = true;
                                         websocket = Some(ws);
                                         break;
                                     } else {
                                         JsonResponse::YouMadeStep(
-                                            game.get_state_cards(pid),
-                                            game.get_player_cards(pid, pid),
-                                            game.get_deck_size(pid),
-                                            game.get_player_cards(
-                                                pid,
-                                                game.get_stepping_player(pid),
-                                            )
-                                            .len(),
+                                            game.get_state_cards(),
+                                            game.get_my_cards(),
+                                            game.get_deck_size(),
+                                            game.get_another_number_of_cards(
+                                                game.get_stepping_player(),
+                                            ),
                                         )
                                     }
                                 }
                                 Err(e) => JsonResponse::StepError(e),
                             },
                             JsonRequest::Exit => {
-                                game.kick_player(pid);
+                                game.kick_me();
                                 ws_end_success = true;
                                 JsonResponse::GameLoser
                             }
