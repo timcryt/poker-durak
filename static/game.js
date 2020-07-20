@@ -158,6 +158,8 @@ socket.onmessage = function(event) {{
             alert('Слишком слабая комбинация');
         } else if (data['StepError'] == 'InvalidComb') {
             alert('Неверная комбинация');
+        } else if (data['Message']) {
+            document.getElementById('chatbox').value += data['Message'] + '\n';
         }
     }
 }}

@@ -245,6 +245,7 @@ enum JsonResponse {
     YourTurn(State, HashSet<Card>, usize, usize, u64),
     YouMadeStep(State, HashSet<Card>, usize, usize),
     StepError(StepError),
+    Message(String),
     JsonError,
     GameWinner,
     GameLoser,
@@ -254,6 +255,7 @@ enum JsonResponse {
 enum JsonRequest {
     Ping,
     MakeStep(Step),
+    SendMessage(String),
     Exit,
 }
 
@@ -538,6 +540,11 @@ fn websocket_handling_thread(
                     last_refresh = Instant::now();
                 }
 
+                while let Some(msg) = game.get_message() {
+                    info!("MESSAGE \"{}\" sent to {}", msg, pid);
+                    ws.send_text(&serde_json::to_string(&JsonResponse::Message(msg)).unwrap()).ok();
+                }
+
                 if let websocket::Message::Text(txt) = message {
                     if txt != "\"Ping\"" {
                         info!("PLAYER From {} request {}", pid, txt);
@@ -567,6 +574,10 @@ fn websocket_handling_thread(
                                 }
                                 Err(e) => JsonResponse::StepError(e),
                             },
+                            JsonRequest::SendMessage(msg) => {
+                                game.send_message(msg);
+                                JsonResponse::Pong
+                            }
                             JsonRequest::Exit => {
                                 game.kick_me();
                                 ws_end_success = true;

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::{seq::SliceRandom, thread_rng};
 
@@ -436,6 +436,8 @@ pub enum GameRequest {
     IsPlayerKicked,
     GetGameWinner,
     GetState,
+    SendMessage(String),
+    GetMessage,
     Exit,
 }
 
@@ -449,6 +451,7 @@ pub enum GameResponse {
     PlayerKicked(bool),
     GameWinner(Option<PID>),
     GameState(State),
+    YourMessage(Option<String>),
     Exited(bool),
 }
 
@@ -544,6 +547,18 @@ impl GameChannelClient {
             _ => panic!(),
         }
     }
+
+    pub fn get_message(&self) -> Option<String> {
+        self.0.send((self.2, GameRequest::GetMessage)).unwrap();
+        match self.1.recv().unwrap() {
+            GameResponse::YourMessage(msg) => msg,
+            _ => panic!(),
+        }
+    }
+
+    pub fn send_message(&self, msg: String) {
+        self.0.send((self.2, GameRequest::SendMessage(msg))).unwrap();
+    } 
 }
 
 pub fn game_worker(
@@ -554,6 +569,7 @@ pub fn game_worker(
     let mut playing = players.keys().map(|x| (x, true)).collect::<HashMap<_, _>>();
     let mut count = players.len();
     let mut game = Game::new(players.keys().copied().collect()).unwrap();
+    let mut messages = players.keys().map(|x| (x, VecDeque::new())).collect::<HashMap<_, _>>();
     info!("GAME {} started", gid);
     'outer: loop {
         match rx.recv() {
@@ -593,6 +609,17 @@ pub fn game_worker(
                             break 'outer;
                         }
                         Some(GameResponse::Exited(false))
+                    }
+                    GameRequest::SendMessage(msg) => {
+                        for (id, msgs) in messages.iter_mut() {
+                            if id != &&pid {
+                                msgs.push_back(msg.clone());
+                            }
+                        }
+                        None
+                    }
+                    GameRequest::GetMessage => {
+                        Some(GameResponse::YourMessage(messages.get_mut(&pid).unwrap().pop_front()))
                     }
                 })
                 .map_or((), |resp| players[&pid].send(resp).unwrap())

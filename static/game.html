@@ -59,6 +59,12 @@
                 <b>Карт в колоде: </b><span id="deck_size"></span><br />
                 <b>Карт у противника: </b><span id="opponent_deck">?</span>
             </p>
+
+            <p>
+                <textarea id="chatbox" rows="25" cols="80" readonly></textarea><br />
+                <input id="msgbox" type="text" size="80" />
+                <button onclick="chatbox.value += document.getElementById('msgbox').value + '\n'; send(JSON.stringify({'SendMessage': document.getElementById('msgbox').value}))">Отправить</button>
+            </p>
         </div>
     </body>
 </html>
