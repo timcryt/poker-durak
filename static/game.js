@@ -159,7 +159,7 @@ socket.onmessage = function(event) {{
         } else if (data['StepError'] == 'InvalidComb') {
             alert('Неверная комбинация');
         } else if (data['Message']) {
-            document.getElementById('chatbox').value += data['Message'] + '\n';
+            document.getElementById('chatbox').value += "   > " + data['Message'] + '\n';
         }
     }
 }}
@@ -228,7 +228,7 @@ function refresh_timeout() {
 }
 
 function chat_send() {
-    document.getElementById('chatbox').value += document.getElementById('msgbox').value + '\n'
+    document.getElementById('chatbox').value += "Вы > " + document.getElementById('msgbox').value + '\n'
     send(JSON.stringify({'SendMessage': document.getElementById('msgbox').value}))
     document.getElementById('msgbox').value = ''
 }
