@@ -227,9 +227,14 @@ function refresh_timeout() {
     }
 }
 
+function chat_send() {
+    document.getElementById('chatbox').value += document.getElementById('msgbox').value + '\n'
+    send(JSON.stringify({'SendMessage': document.getElementById('msgbox').value}))
+    document.getElementById('msgbox').value = ''
+}
+
 heartbit = function() {
     send('"Ping"');
-    net_time += 1;
     refresh_netstat();
     timeout -= 1;
     refresh_timeout();

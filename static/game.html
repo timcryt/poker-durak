@@ -61,9 +61,9 @@
             </p>
 
             <p>
-                <textarea id="chatbox" rows="25" cols="80" readonly></textarea><br />
-                <input id="msgbox" type="text" size="80" />
-                <button onclick="chatbox.value += document.getElementById('msgbox').value + '\n'; send(JSON.stringify({'SendMessage': document.getElementById('msgbox').value}))">Отправить</button>
+                <textarea onload="chatbox.value = ''" id="chatbox" rows="25" cols="80" readonly></textarea><br />
+                <input id="msgbox" onkeyup="if (msgbox.onkeyup.arguments[0]['key'] == 'Enter') chat_send()" type="text" size="80" />
+                <button onclick="chat_send()">Отправить</button>
             </p>
         </div>
     </body>
