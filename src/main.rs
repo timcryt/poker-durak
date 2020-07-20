@@ -542,7 +542,8 @@ fn websocket_handling_thread(
 
                 for msg in game.get_messages() {
                     info!("MESSAGE \"{}\" sent to {}", msg, pid);
-                    ws.send_text(&serde_json::to_string(&JsonResponse::Message(msg)).unwrap()).ok();
+                    ws.send_text(&serde_json::to_string(&JsonResponse::Message(msg)).unwrap())
+                        .ok();
                 }
 
                 if let websocket::Message::Text(txt) = message {
@@ -587,19 +588,16 @@ fn websocket_handling_thread(
                         Err(_) => JsonResponse::JsonError,
                     };
 
+                    let resp = serde_json::to_string(&json_response).unwrap();
+
                     match &json_response {
                         JsonResponse::Pong => (),
                         _ => {
-                            info!(
-                                "PLAYER Response {} to {}",
-                                serde_json::to_string(&json_response).unwrap(),
-                                pid
-                            );
+                            info!("PLAYER Response {} to {}", resp, pid);
                         }
                     }
 
-                    ws.send_text(&serde_json::to_string(&json_response).unwrap())
-                        .unwrap();
+                    ws.send_text(&resp).unwrap();
 
                     if ws_end_success {
                         websocket = Some(ws);
