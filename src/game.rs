@@ -557,8 +557,10 @@ impl GameChannelClient {
     }
 
     pub fn send_message(&self, msg: String) {
-        self.0.send((self.2, GameRequest::SendMessage(msg))).unwrap();
-    } 
+        self.0
+            .send((self.2, GameRequest::SendMessage(msg)))
+            .unwrap();
+    }
 }
 
 pub fn game_worker(
@@ -569,7 +571,10 @@ pub fn game_worker(
     let mut playing = players.keys().map(|x| (x, true)).collect::<HashMap<_, _>>();
     let mut count = players.len();
     let mut game = Game::new(players.keys().copied().collect()).unwrap();
-    let mut messages = players.keys().map(|x| (*x, VecDeque::new())).collect::<HashMap<_, _>>();
+    let mut messages = players
+        .keys()
+        .map(|x| (*x, VecDeque::new()))
+        .collect::<HashMap<_, _>>();
     info!("GAME {} started", gid);
     'outer: loop {
         match rx.recv() {

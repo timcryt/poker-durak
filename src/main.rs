@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
-use std::sync::{
-    Arc, Mutex,
-    mpsc,
-};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -261,10 +258,7 @@ enum JsonRequest {
     Exit,
 }
 
-fn player_init(
-    game_pool: Arc<Mutex<GamePool>>,
-    pid: usize,
-) -> (bool, Option<GameChannelClient>) {
+fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (bool, Option<GameChannelClient>) {
     sleep(PLAYING_ACTIVITY_WAIT);
 
     let mut game_pool = game_pool.lock().unwrap();
@@ -580,8 +574,7 @@ fn websocket_handling_thread(
                                 Err(e) => JsonResponse::StepError(e),
                             },
                             JsonRequest::SendMessage(msg) => {
-                                
-                                if msg.len() <= MAX_MESSAGE_LENGTH { 
+                                if msg.len() <= MAX_MESSAGE_LENGTH {
                                     game.send_message(msg);
                                     JsonResponse::Sent(Ok(()))
                                 } else {
