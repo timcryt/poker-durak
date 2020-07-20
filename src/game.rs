@@ -451,7 +451,7 @@ pub enum GameResponse {
     PlayerKicked(bool),
     GameWinner(Option<PID>),
     GameState(State),
-    YourMessage(Option<String>),
+    YourMessages(VecDeque<String>),
     Exited(bool),
 }
 
@@ -548,10 +548,10 @@ impl GameChannelClient {
         }
     }
 
-    pub fn get_message(&self) -> Option<String> {
+    pub fn get_messages(&self) -> VecDeque<String> {
         self.0.send((self.2, GameRequest::GetMessage)).unwrap();
         match self.1.recv().unwrap() {
-            GameResponse::YourMessage(msg) => msg,
+            GameResponse::YourMessages(msg) => msg,
             _ => panic!(),
         }
     }
@@ -569,7 +569,7 @@ pub fn game_worker(
     let mut playing = players.keys().map(|x| (x, true)).collect::<HashMap<_, _>>();
     let mut count = players.len();
     let mut game = Game::new(players.keys().copied().collect()).unwrap();
-    let mut messages = players.keys().map(|x| (x, VecDeque::new())).collect::<HashMap<_, _>>();
+    let mut messages = players.keys().map(|x| (*x, VecDeque::new())).collect::<HashMap<_, _>>();
     info!("GAME {} started", gid);
     'outer: loop {
         match rx.recv() {
@@ -612,14 +612,16 @@ pub fn game_worker(
                     }
                     GameRequest::SendMessage(msg) => {
                         for (id, msgs) in messages.iter_mut() {
-                            if id != &&pid {
+                            if id != &pid {
                                 msgs.push_back(msg.clone());
                             }
                         }
                         None
                     }
                     GameRequest::GetMessage => {
-                        Some(GameResponse::YourMessage(messages.get_mut(&pid).unwrap().pop_front()))
+                        let t = GameResponse::YourMessages(messages.remove(&pid).unwrap());
+                        messages.insert(pid, VecDeque::new());
+                        Some(t)
                     }
                 })
                 .map_or((), |resp| players[&pid].send(resp).unwrap())

@@ -540,7 +540,7 @@ fn websocket_handling_thread(
                     last_refresh = Instant::now();
                 }
 
-                while let Some(msg) = game.get_message() {
+                for msg in game.get_messages() {
                     info!("MESSAGE \"{}\" sent to {}", msg, pid);
                     ws.send_text(&serde_json::to_string(&JsonResponse::Message(msg)).unwrap()).ok();
                 }
