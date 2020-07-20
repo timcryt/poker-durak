@@ -160,6 +160,10 @@ socket.onmessage = function(event) {{
             alert('Неверная комбинация');
         } else if (data['Message']) {
             document.getElementById('chatbox').value += "   > " + data['Message'] + '\n';
+        } else if (data['Sent']) {
+            if (data['Sent']['Err'] === null) {
+                alert('Слишком длинное сообщение, не удалось отправить');
+            }
         }
     }
 }}

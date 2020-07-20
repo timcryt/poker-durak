@@ -39,6 +39,7 @@ const WS_CLOSED_WAIT: Duration = Duration::from_secs(5);
 const WS_UPDATE: Duration = Duration::from_millis(100);
 const WS_PREWAIT: Duration = Duration::from_millis(10);
 const REFRESH_DURATION: Duration = Duration::from_millis(250);
+const MAX_MESSAGE_LENGTH: usize = 4096;
 
 struct GamePool {
     players: HashSet<usize>,
@@ -246,6 +247,7 @@ enum JsonResponse {
     YouMadeStep(State, HashSet<Card>, usize, usize),
     StepError(StepError),
     Message(String),
+    Sent(Result<(), ()>),
     JsonError,
     GameWinner,
     GameLoser,
@@ -576,8 +578,13 @@ fn websocket_handling_thread(
                                 Err(e) => JsonResponse::StepError(e),
                             },
                             JsonRequest::SendMessage(msg) => {
-                                game.send_message(msg);
-                                JsonResponse::Pong
+                                
+                                if msg.len() <= MAX_MESSAGE_LENGTH { 
+                                    game.send_message(msg);
+                                    JsonResponse::Sent(Ok(()))
+                                } else {
+                                    JsonResponse::Sent(Err(()))
+                                }
                             }
                             JsonRequest::Exit => {
                                 game.kick_me();
