@@ -3,8 +3,8 @@ use std::env::args;
 use std::fs::File;
 use std::io::prelude::*;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc, Mutex,
+    mpsc,
 };
 use std::thread;
 use std::thread::sleep;
@@ -37,7 +37,6 @@ const TIMEOUT: Duration = Duration::from_secs(300);
 const PLAYING_ACTIVITY_WAIT: Duration = Duration::from_millis(200);
 const WS_CLOSED_WAIT: Duration = Duration::from_secs(5);
 const WS_UPDATE: Duration = Duration::from_millis(100);
-const WS_PREWAIT: Duration = Duration::from_millis(10);
 const REFRESH_DURATION: Duration = Duration::from_millis(250);
 const MAX_MESSAGE_LENGTH: usize = 4096;
 
@@ -180,8 +179,11 @@ fn main() {
                         let mut data = Vec::new();
                         file.read_to_end(&mut data).unwrap();
 
-                        let all_games = game_pool.lock().unwrap().counter;
-                        let now_games = game_pool.lock().unwrap().playing;
+                        let (all_games, now_games) = {
+                            let game_pool = game_pool.lock().unwrap();
+                            (game_pool.counter, game_pool.playing)
+                        };
+
 
                         match String::from_utf8(data.clone()) {
                             Ok(data) =>
@@ -215,19 +217,17 @@ fn main() {
 fn websocket_next(
     mut websocket: websocket::Websocket,
 ) -> Option<(websocket::Websocket, Option<websocket::Message>)> {
-    let run_flag = Arc::new(AtomicBool::new(false));
-    let run_flag_clone = Arc::clone(&run_flag);
+    let (ft, fr) = mpsc::channel();
 
     let child = thread::spawn(move || {
         let msg = websocket.next();
-        run_flag_clone.store(true, Ordering::Relaxed);
+        ft.send(()).unwrap();
         Some((websocket, msg))
     });
 
     let now = Instant::now();
-    sleep(WS_PREWAIT);
     while now.elapsed() < HEARTBIT_INTERVAL {
-        if run_flag.load(Ordering::Relaxed) {
+        if fr.try_recv().is_ok() {
             return child.join().ok().flatten();
         }
         sleep(WS_UPDATE);
@@ -264,25 +264,27 @@ enum JsonRequest {
 fn player_init(
     game_pool: Arc<Mutex<GamePool>>,
     pid: usize,
-) -> (Arc<Mutex<GamePool>>, bool, Option<GameChannelClient>) {
+) -> (bool, Option<GameChannelClient>) {
     sleep(PLAYING_ACTIVITY_WAIT);
 
-    if game_pool.lock().unwrap().on_delete.contains_key(&pid) {
+    let mut game_pool = game_pool.lock().unwrap();
+
+    if game_pool.on_delete.contains_key(&pid) {
         info!("PLAYER {} is restoring", pid);
-        let restr_game = game_pool.lock().unwrap().on_delete.remove(&pid).unwrap();
-        (game_pool, false, restr_game)
-    } else if game_pool.lock().unwrap().players.contains(&pid) {
-        if game_pool.lock().unwrap().on_delete.contains_key(&pid) {
+        let restr_game = game_pool.on_delete.remove(&pid).unwrap();
+        (false, restr_game)
+    } else if game_pool.players.contains(&pid) {
+        if game_pool.on_delete.contains_key(&pid) {
             info!("PLAYER {} is restoring", pid);
-            let restr_game = game_pool.lock().unwrap().on_delete.remove(&pid).unwrap();
-            (game_pool, false, restr_game)
+            let restr_game = game_pool.on_delete.remove(&pid).unwrap();
+            (false, restr_game)
         } else {
-            (game_pool, true, None)
+            (true, None)
         }
     } else {
-        game_pool.lock().unwrap().waiting_players.insert(pid);
+        game_pool.waiting_players.insert(pid);
         info!("PLAYER {} registrated!", pid);
-        (game_pool, false, None)
+        (false, None)
     }
 }
 
@@ -357,15 +359,15 @@ fn game_create(game_pool: Arc<Mutex<GamePool>>) {
 
     let mut now_playing = HashMap::new();
 
-    let (cltt, srvr) = std::sync::mpsc::channel();
+    let (cltt, srvr) = mpsc::channel();
 
     for player in players {
         game_pool.players.insert(player);
-        let (srvt, cltr) = std::sync::mpsc::channel();
+        let (srvt, cltr) = mpsc::channel();
         now_playing.insert(player, srvt);
         game_pool.players_channels.insert(
             player,
-            GameChannelClient(std::sync::mpsc::Sender::clone(&cltt), cltr, player),
+            GameChannelClient(mpsc::Sender::clone(&cltt), cltr, player),
         );
         game_pool.players_time.insert(player, None);
     }
@@ -455,7 +457,7 @@ fn websocket_handling_thread(
     game_pool: Arc<Mutex<GamePool>>,
     pid: usize,
 ) {
-    let (game_pool, is_ret, restr_game) = player_init(game_pool, pid);
+    let (is_ret, restr_game) = player_init(Arc::clone(&game_pool), pid);
     if is_ret {
         websocket
             .send_text(&serde_json::to_string(&JsonResponse::YouArePlaying).unwrap())
