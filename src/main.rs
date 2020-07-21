@@ -61,11 +61,11 @@ fn get_sid(request: &rouille::Request) -> Option<usize> {
 fn data_by_url(url: &str) -> &'static str {
     match url {
         "/favicon.ico" => "image/png",
-        url if url.ends_with(".css") => "text/css",
-        url if url.ends_with(".html") => "text/html",
-        url if url.ends_with(".js") => "text/javascript",
+        url if url.ends_with(".css") => "text/css; charset=UTF-8",
+        url if url.ends_with(".html") => "text/html; charset=UTF-8",
+        url if url.ends_with(".js") => "text/javascript; charset=UTF-8",
         url if url.ends_with(".ttf") => "font/ttf",
-        _ => "text/plain",
+        _ => "text/plain; charset=UTF-8",
     }
 }
 
@@ -76,6 +76,7 @@ fn router(url: &str) -> &str {
         "/about" => "/about.html",
         "/winner" => "/winner.html",
         "/loser" => "/loser.html",
+        "/game" => "/game.html",
         url => url,
     }
 }
@@ -137,12 +138,6 @@ fn main() {
 
     rouille::start_server(&addr, move |request| {
         router!(request,
-            (GET) (/game) => {
-                info!("GET /game");
-                let resp = Response::from_file("text/html", File::open("static/game.html").unwrap());
-                apply(request, set_cookies(&request, resp))
-            },
-
             (GET) (/ws) => {
                 info!("GET /ws");
                 let sid = match get_sid(request) {
@@ -182,7 +177,7 @@ fn main() {
                         };
 
 
-                        match String::from_utf8(data.clone()) {
+                        let resp = match String::from_utf8(data.clone()) {
                             Ok(data) =>
                                 apply(request, Response::from_data(data_by_url(router(&url)), data
                                     .replace("{host}", &addr_clone)
@@ -193,8 +188,13 @@ fn main() {
                             Err(_) => {
                                 apply(request, Response::from_data(data_by_url(&url), data))
                             }
-                        }
+                        };
 
+                        if router(&url) == "/game.html" {
+                            apply(request, set_cookies(&request, resp))
+                        } else {
+                            resp
+                        }
                     }
                     Err(_) => {
                         warn!("GET {} 404", url);
