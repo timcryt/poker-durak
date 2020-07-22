@@ -216,7 +216,7 @@ fn websocket_next(
 ) -> Option<(websocket::Websocket, websocket::Message)> {
     let (ft, fr) = mpsc::channel();
 
-    let child = thread::spawn(move || {
+    thread::spawn(move || {
         let mut ret = None;
         let now = Instant::now();
         loop {
@@ -228,19 +228,17 @@ fn websocket_next(
                 Err(websocket::WebsocketRecvError::Empty) => (),
                 Err(_) => {
                     break;
-                } 
+                }
             }
             sleep(WS_UPDATE);
             if now.elapsed() > HEARTBIT_INTERVAL {
                 break;
             }
         }
-        ft.send(()).unwrap();
-        ret
+        ft.send(ret).unwrap();
     });
 
-    fr.recv().ok()?;
-    child.join().ok()?
+    fr.recv().ok()?
 }
 
 #[derive(Serialize)]
