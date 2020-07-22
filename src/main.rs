@@ -213,24 +213,34 @@ fn main() {
 
 fn websocket_next(
     mut websocket: websocket::Websocket,
-) -> Option<(websocket::Websocket, Option<websocket::Message>)> {
+) -> Option<(websocket::Websocket, websocket::Message)> {
     let (ft, fr) = mpsc::channel();
 
     let child = thread::spawn(move || {
-        let msg = websocket.next();
+        let mut ret = None;
+        let now = Instant::now();
+        loop {
+            match websocket.try_recv() {
+                Ok(msg) => {
+                    ret = Some((websocket, msg));
+                    break;
+                }
+                Err(websocket::WebsocketRecvError::Empty) => (),
+                Err(_) => {
+                    break;
+                } 
+            }
+            sleep(WS_UPDATE);
+            if now.elapsed() > HEARTBIT_INTERVAL {
+                break;
+            }
+        }
         ft.send(()).unwrap();
-        Some((websocket, msg))
+        ret
     });
 
-    let now = Instant::now();
-    while now.elapsed() < HEARTBIT_INTERVAL {
-        if fr.try_recv().is_ok() {
-            return child.join().ok().flatten();
-        }
-        sleep(WS_UPDATE);
-    }
-
-    None
+    fr.recv().ok()?;
+    child.join().ok()?
 }
 
 #[derive(Serialize)]
@@ -388,12 +398,8 @@ fn wait_game(
                 game_exit(game_pool, None, None, None, pid);
                 return None;
             }
-            Some((websocket, None)) => {
-                game_exit(game_pool, None, Some(websocket), None, pid);
-                return None;
-            }
             Some((mut websocket, message)) => {
-                if let websocket::Message::Text(txt) = message.unwrap() {
+                if let websocket::Message::Text(txt) = message {
                     if let Ok(req) = serde_json::from_str::<JsonRequest>(&txt) {
                         if let JsonRequest::Ping = req {
                             websocket
@@ -517,11 +523,7 @@ fn websocket_handling_thread(
                 websocket = None;
                 break;
             }
-            Some((ws, None)) => {
-                websocket = Some(ws);
-                break;
-            }
-            Some((mut ws, Some(message))) => {
+            Some((mut ws, message)) => {
                 if last_refresh.elapsed() > REFRESH_DURATION {
                     match refresh_time(&mut game, &mut stepping_time, &mut your_turn_new, pid) {
                         Ok(Some(msg)) => {
