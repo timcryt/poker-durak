@@ -217,25 +217,23 @@ fn websocket_next(
     let (ft, fr) = mpsc::channel();
 
     thread::spawn(move || {
-        let mut ret = None;
         let now = Instant::now();
-        loop {
+        ft.send(loop {
             match websocket.try_recv() {
                 Ok(msg) => {
-                    ret = Some((websocket, msg));
-                    break;
+                    break Some((websocket, msg));
                 }
                 Err(websocket::WebsocketRecvError::Empty) => (),
                 Err(_) => {
-                    break;
+                    break None;
                 }
             }
             sleep(WS_UPDATE);
             if now.elapsed() > HEARTBIT_INTERVAL {
-                break;
+                break None;
             }
-        }
-        ft.send(ret).unwrap();
+        })
+        .unwrap();
     });
 
     fr.recv().ok()?
