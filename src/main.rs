@@ -294,7 +294,6 @@ fn game_exit(
     ws_end_success: Option<bool>,
     pid: usize,
 ) {
-    let game_pool = Arc::clone(&game_pool);
     thread::spawn(move || {
         game_pool.lock().unwrap().on_delete.insert(pid, game);
 
@@ -343,8 +342,7 @@ fn game_exit(
     });
 }
 
-fn game_create(game_pool: Arc<Mutex<GamePool>>) {
-    let mut game_pool = game_pool.lock().unwrap();
+fn game_create(game_pool: &mut GamePool) {
     let players = game_pool
         .waiting_players
         .iter()
@@ -468,7 +466,7 @@ fn websocket_handling_thread(
     let mut game = if let Some(game) = restr_game {
         game
     } else if game_pool.lock().unwrap().waiting_players.len() >= 2 {
-        game_create(Arc::clone(&game_pool));
+        game_create(&mut game_pool.lock().unwrap());
         game_pool
             .lock()
             .unwrap()
