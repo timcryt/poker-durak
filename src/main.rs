@@ -121,6 +121,11 @@ fn main() {
         None => "127.0.0.1:8000".to_string(),
     };
 
+    let domain = match args.next() {
+        Some(arg) => arg,
+        None => addr.clone(),
+    };
+
     let game_pool = Arc::new(Mutex::new(GamePool {
         players: HashSet::new(),
         players_channels: HashMap::new(),
@@ -130,8 +135,6 @@ fn main() {
         counter: 0,
         playing: 0,
     }));
-
-    let addr_clone = addr.clone();
 
     info!("Listening on {}", addr);
 
@@ -179,7 +182,7 @@ fn main() {
                         let resp = match String::from_utf8(data.clone()) {
                             Ok(data) =>
                                 apply(request, Response::from_data(data_by_url(router(&url)), data
-                                    .replace("{host}", &addr_clone)
+                                    .replace("{host}", &domain)
                                     .replace("{HEARTBIT_INTERVAL}", &(HEARTBIT_INTERVAL.as_secs().to_string()))
                                     .replace("{all_games}", &all_games.to_string())
                                     .replace("{now_games}", &now_games.to_string())
