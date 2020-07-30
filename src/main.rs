@@ -206,8 +206,8 @@ fn main() {
 
             },
             _ => {
-                warn!("{} {} 404", request.method(), request.url());
-                apply(request, rouille::Response::from_file("text/html", File::open("static/404.html").unwrap()).with_status_code(404))
+                warn!("{} {} 400", request.method(), request.url());
+                apply(request, rouille::Response::empty_400())
             }
         )
     });
