@@ -134,7 +134,7 @@ mod tests {
             )
             .unwrap()
             .rank,
-            CombRank::FullHouse(((CardRank::Ace, CardRank::King), 3))
+            CombRank::FullHouse((CardRank::Ace, CardRank::King))
         );
 
         assert_eq!(
@@ -166,7 +166,7 @@ mod tests {
             )
             .unwrap()
             .rank,
-            CombRank::FullHouse(((CardRank::Ace, CardRank::King), 2))
+            CombRank::FullHouse((CardRank::King, CardRank::Ace))
         );
     }
 
