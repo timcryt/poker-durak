@@ -88,7 +88,7 @@ impl Comb {
         if cards.len() == 5 {
             for i in CARD_SUITS.iter() {
                 let mut v = vec![false; CARD_RANKS.len() + 1];
-                for j in cards.into_iter().filter(|x| x.suit == *i) {
+                for j in cards.iter().filter(|x| x.suit == *i) {
                     v[j.rank as usize + 1] = true;
                     if j.rank == CardRank::Ace {
                         v[0] = true;
@@ -118,7 +118,7 @@ impl Comb {
 
             let mut xrank = None;
             for i in CARD_RANKS.iter().rev() {
-                if cards.into_iter().filter(|x| x.rank == *i).count() >= x {
+                if cards.iter().filter(|x| x.rank == *i).count() >= x {
                     xrank = Some(*i);
                     break;
                 }
@@ -128,7 +128,7 @@ impl Comb {
                 .map(|xr| {
                     let mut yrank = None;
                     for i in CARD_RANKS.iter().rev() {
-                        if *i != xr && cards.into_iter().filter(|x| x.rank == *i).count() >= y {
+                        if *i != xr && cards.iter().filter(|x| x.rank == *i).count() >= y {
                             yrank = Some(*i);
                             break;
                         }
@@ -144,7 +144,7 @@ impl Comb {
     fn is_x_of_a_kind(cards: &HashSet<Card>, x: usize) -> Option<CardRank> {
         if cards.len() == x {
             for i in CARD_RANKS.iter().rev() {
-                if cards.into_iter().filter(|x| x.rank == *i).count() >= x {
+                if cards.iter().filter(|x| x.rank == *i).count() >= x {
                     return Some(*i);
                 }
             }
@@ -182,10 +182,9 @@ impl Comb {
         if cards.len() == 5 {
             let mut m = None;
             for i in CARD_SUITS.iter() {
-                let x =
-                    cards
-                        .into_iter()
-                        .filter_map(|x| if x.suit == *i { None } else { Some(x.rank) });
+                let x = cards
+                    .iter()
+                    .filter_map(|x| if x.suit == *i { None } else { Some(x.rank) });
 
                 if x.clone().count() >= 5 {
                     let mx = x.max().unwrap();
