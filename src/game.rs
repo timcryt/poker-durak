@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 
 use rand::{seq::SliceRandom, thread_rng};
 
@@ -19,10 +19,8 @@ struct Player {
 
 impl PartialOrd for Player {
     fn partial_cmp(&self, other: &Player) -> Option<std::cmp::Ordering> {
-        let mut v1 = self.cards.iter().map(|card| card.rank).collect::<Vec<_>>();
-        v1.sort();
-        let mut v2 = other.cards.iter().map(|card| card.rank).collect::<Vec<_>>();
-        v2.sort();
+        let v1 = self.cards.iter().map(|card| card.rank).collect::<BTreeSet<_>>();
+        let v2 = other.cards.iter().map(|card| card.rank).collect::<BTreeSet<_>>();
         Some(v1.cmp(&v2))
     }
 }
