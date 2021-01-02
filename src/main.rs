@@ -276,13 +276,7 @@ fn player_init(game_pool: Arc<Mutex<GamePool>>, pid: usize) -> (bool, Option<Gam
         let restr_game = game_pool.on_delete.remove(&pid).unwrap();
         (false, restr_game)
     } else if game_pool.players.contains(&pid) {
-        if game_pool.on_delete.contains_key(&pid) {
-            info!("PLAYER {} is restoring", pid);
-            let restr_game = game_pool.on_delete.remove(&pid).unwrap();
-            (false, restr_game)
-        } else {
-            (true, None)
-        }
+        (true, None)
     } else {
         game_pool.waiting_players.insert(pid);
         info!("PLAYER {} registrated!", pid);
