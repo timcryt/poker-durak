@@ -468,15 +468,7 @@ fn websocket_handling_thread(
 
     let mut game = if let Some(game) = restr_game {
         game
-    } else if game_pool.lock().unwrap().waiting_players.len() >= 2 {
-        game_create(&mut game_pool.lock().unwrap());
-        game_pool
-            .lock()
-            .unwrap()
-            .players_channels
-            .remove(&pid)
-            .unwrap()
-    } else {
+    } else if game_pool.lock().unwrap().waiting_players.len() < 2 {
         websocket = match wait_game(websocket, game_pool.clone(), pid) {
             Some(websocket) => websocket,
             None => return,
@@ -486,6 +478,13 @@ fn websocket_handling_thread(
         } else {
             return;
         }
+    } else {
+        let mut game_pool = game_pool.lock().unwrap();
+        game_create(&mut game_pool);
+        game_pool
+            .players_channels
+            .remove(&pid)
+            .unwrap()
     };
 
     info!("PLAYER {} is playing!", pid);
