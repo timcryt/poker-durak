@@ -396,4 +396,41 @@ mod tests {
             true
         );
     }
+
+    #[test]
+    fn comb_regression_test_all_flush() {
+        assert_eq!(
+            Comb::new(
+                vec![
+                    Card {
+                        rank: CardRank::Ten,
+                        suit: CardSuit::Spades,
+                    },
+
+                    Card {
+                        rank: CardRank::Queen,
+                        suit: CardSuit::Hearts,
+                    },
+
+                    Card {
+                        rank: CardRank::Two,
+                        suit: CardSuit::Spades,
+                    },
+
+                    Card {
+                        rank: CardRank::Jack,
+                        suit: CardSuit::Hearts,
+                    },
+
+                    Card {
+                        rank: CardRank::Two,
+                        suit: CardSuit::Diamonds,
+                    },
+                ]
+                .into_iter()
+                .collect()
+            ),
+            None
+        )
+    }
 }
