@@ -164,6 +164,8 @@ socket.onmessage = function(event) {{
             if (data['Sent']['Err'] === null) {
                 alert('Слишком длинное сообщение, не удалось отправить');
             }
+        } else if (data == 'YouArePlaying') {
+            alert('Вы уже играете в другой вкладке')
         }
     }
 }}
