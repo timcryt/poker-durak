@@ -23,7 +23,6 @@ enum CombRank {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Comb {
     pub cards: HashSet<Card>,
-    #[serde(skip_serializing)]
     rank: CombRank,
 }
 
@@ -181,10 +180,10 @@ impl Comb {
     fn is_flush(cards: &HashSet<Card>) -> Option<[CardRank; 5]> {
         if cards.len() == 5 {
             let mut m = Vec::new();
-            for i in CARD_SUITS.iter().rev() {
+            for i in CARD_SUITS.iter() {
                 let mut x = cards
                     .iter()
-                    .filter_map(|x| if x.suit == *i { None } else { Some(x.rank) })
+                    .filter_map(|x| if x.suit == *i { Some(x.rank) } else { None })
                     .collect::<Vec<_>>();
 
                 x.sort_by(|a, b| std::cmp::Ord::cmp(b, a));
