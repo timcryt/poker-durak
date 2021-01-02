@@ -14,7 +14,7 @@ enum CombRank {
     TwoPairs((CardRank, CardRank)),
     Set(CardRank),
     Straight(CardRank),
-    Flush(CardRank),
+    Flush([CardRank; 5]),
     FullHouse((CardRank, CardRank)),
     FourOfAKind(CardRank),
     StraightFlush(CardRank),
@@ -178,23 +178,26 @@ impl Comb {
         Comb::is_x_of_a_kind(cards, 1)
     }
 
-    fn is_flush(cards: &HashSet<Card>) -> Option<CardRank> {
+    fn is_flush(cards: &HashSet<Card>) -> Option<[CardRank; 5]> {
         if cards.len() == 5 {
-            let mut m = None;
-            for i in CARD_SUITS.iter() {
-                let x = cards
+            let mut m = Vec::new();
+            for i in CARD_SUITS.iter().rev() {
+                let mut x = cards
                     .iter()
-                    .filter_map(|x| if x.suit == *i { None } else { Some(x.rank) });
+                    .filter_map(|x| if x.suit == *i { None } else { Some(x.rank) })
+                    .collect::<Vec<_>>();
 
-                if x.clone().count() >= 5 {
-                    let mx = x.max().unwrap();
-                    m = match m {
-                        Some(x) if x > mx => m,
-                        _ => Some(mx),
-                    }
+                x.sort_by(|a, b| std::cmp::Ord::cmp(b, a));
+
+                if x.len() == 5 && x > m {
+                    m = x
                 }
             }
-            m
+            if m.len() == 5 {
+                Some([m[0], m[1], m[2], m[3], m[4]])
+            } else {
+                None
+            }
         } else {
             None
         }
