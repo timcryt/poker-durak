@@ -201,7 +201,13 @@ mod tests {
             )
             .unwrap()
             .rank,
-            CombRank::Flush(CardRank::Ace)
+            CombRank::Flush([
+                CardRank::Ace,
+                CardRank::King,
+                CardRank::Queen,
+                CardRank::Jack,
+                CardRank::Nine
+            ])
         );
     }
 
