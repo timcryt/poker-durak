@@ -118,21 +118,7 @@ impl std::fmt::Display for StepError {
     }
 }
 
-impl std::error::Error for StepError {
-    fn description(&self) -> &str {
-        match &self {
-            StepError::InvalidPID => "Вы не можете совершить шаг сейчас",
-            StepError::InvalidStepType => "Вы не имеете права делать данный тип шага",
-            StepError::InvalidCards => "У вас нет карт, чтобы сделать этот шаг",
-            StepError::InvalidComb => "Ваши карты не являются покерной комбинацией",
-            StepError::WeakComb => "Ваша комбинация слишком слаба",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        None
-    }
-}
+impl std::error::Error for StepError {}
 
 impl Game {
     pub fn new(players_ids: Vec<PID>) -> Option<Game> {
